@@ -1,6 +1,6 @@
 import { fetchBaseQuery } from "@reduxjs/toolkit/query";
 import { tokenService } from "./tokenService";
-import { logout } from "@/features/auth/slices/authSlice";
+import { logout } from "@/modules/auth/slices/authSlice";
 
 // Use RTK queries to send HTTP requests to the backend
 
