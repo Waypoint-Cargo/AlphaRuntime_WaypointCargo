@@ -9,11 +9,10 @@
  */
 export const toUserDTO = (user) => ({
     id: user.id,
-    username: user.username,
+    fullName: user.fullName,
     email: user.email,
+    phone: user.phone,
     role: user.role,
-    avatarUrl: user.avatarUrl ?? null,
-    authProvider: user.authProvider ?? 'local',
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
 });

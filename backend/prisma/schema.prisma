@@ -197,19 +197,14 @@ enum SyncResult {
 
 model User {
   id       String  @id @default(cuid())
-  username String  @unique
   email    String  @unique
-  password String? // null for Google-only accounts
+  password String
   role     Role // no default: role is chosen at sign-up and approved by an admin
 
   // NEW — business identity (Figma login uses Employee Number)
-  employeeNumber String  @unique
+  employeeNumber String?  @unique
   fullName       String
   phone          String?
-
-  googleId     String?      @unique
-  avatarUrl    String?
-  authProvider AuthProvider @default(local)
 
   isActive Boolean @default(true)
 

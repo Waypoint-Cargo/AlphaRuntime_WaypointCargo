@@ -5,7 +5,7 @@ import { config } from '../config/env.js';
 // signs a new access token containing the user info 
 export const signAccessToken = (user) => {
     return jwt.sign(
-        { sub: user.id, username: user.username, role: user.role },
+        { sub: user.id, employeeNumber: user.employeeNumber, fullName: user.fullName, role: user.role },
         config.accessTokenSecret,
         { expiresIn: config.accessTokenExpiry }
     )
@@ -15,15 +15,15 @@ export const signAccessToken = (user) => {
 // the family allows us to group all rotations from the same login session.
 export const signRefreshToken = (user, family) => {
     return jwt.sign(
-        { sub: user.id, username: user.username, family },
+        { sub: user.id, employeeNumber: user.employeeNumber, fullName: user.fullName, family },
         config.refreshTokenSecret,
         { expiresIn: config.refreshTokenExpiry }
     )
 }
 
 // verify access token 
-export const verifyAccessToken = (token) => {
-    return jwt.verify(token, config.accessTokenSecret)
+export const verifyAccessToken = (token, options = {}) => {
+    return jwt.verify(token, config.accessTokenSecret, options)
 }
 
 // verify refresh token 
