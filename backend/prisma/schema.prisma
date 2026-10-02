@@ -40,6 +40,13 @@ enum VehicleType {
   VAN
 }
 
+enum VehicleStatus {
+  AVAILABLE
+  ASSIGNED
+  ON_ROUTE
+  MAINTENANCE
+}
+
 enum UnloadingType {
   REAR_DOCK
   CURB
@@ -398,6 +405,8 @@ model Vehicle {
   defaultDriverId String? @unique
   defaultDriver   User?   @relation("VehicleDefaultDriver", fields: [defaultDriverId], references: [id], onDelete: SetNull)
 
+  // operational state shown on the Fleet board — separate from isActive (soft delete/deactivation)
+  status           VehicleStatus @default(AVAILABLE)
   isActive         Boolean  @default(true)
   statusNote       String?
   sourceAttributes Json     @default("{}")
@@ -408,6 +417,7 @@ model Vehicle {
   fuelEntries FuelLedgerEntry[]
 
   @@index([homeDepotId, type, isRefrigerated])
+  @@index([status])
 }
 
 model CalendarDay {
