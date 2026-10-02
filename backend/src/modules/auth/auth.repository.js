@@ -1,20 +1,29 @@
 import { getPrisma } from "../../config/database.js";
 
+const userSessionSelect = {
+    id: true,
+    email: true,
+    employeeNumber: true,
+    fullName: true,
+    phone: true,
+    role: true,
+    isActive: true,
+    isApproved: true,
+    createdAt: true,
+    updatedAt: true,
+};
 // find user by username or email
-export const findUser = async ({ username, email }) => {
+export const findUser = async ({ email }) => {
     const db = getPrisma();
     return db.user.findFirst({
         where: {
-            OR: [
-                { username: username },
-                { email: email },
-            ],
+            OR: [{ email: email }],
         },
         select: {
             id: true,
-        }
-    })
-}
+        },
+    });
+};
 
 // create user
 export const createUser = async ({ username, email, password }) => {
@@ -25,44 +34,49 @@ export const createUser = async ({ username, email, password }) => {
             email,
             password,
         },
-    })
-}
+    });
+};
 
 // create user inside a transaction
-export const createUserTx = (tx, { username, email, password }) => {
+export const createUserTx = (
+    tx,
+    { fullName, email, password, phone, role },
+) => {
     return tx.user.create({
         data: {
-            username,
+            fullName,
             email,
             password,
+            phone,
+            role,
         },
-    })
-}
+    });
+};
 
 // find user by username for login
-export const findUserForLogin = async (username) => {
+export const findUserForLogin = async (employeeNumber) => {
     const db = getPrisma();
     return db.user.findUnique({
-        where: { username },
+        where: { employeeNumber },
         select: {
-            id: true,
-            username: true,
-            email: true,
-            role: true,
-            isActive: true,
-            authProvider: true,  
-            avatarUrl: true,
+            ...userSessionSelect,
             failedAttempts: true,
             lockedUntil: true,
             password: true,
-            createdAt: true,
-            updatedAt: true,
-        }
-    })
-}
+        },
+    });
+};
 
-// store the refresh token 
-export const storeRefreshToken = async (userId, tokenHash, family, expiresAt) => {
+// store the refresh token
+export const storeRefreshToken = async (
+    userId,
+    tokenHash,
+    family,
+    expiresAt,
+    deviceId,
+    userAgent,
+    ip
+) => {
     const db = getPrisma();
     return db.refreshToken.create({
         data: {
@@ -71,16 +85,19 @@ export const storeRefreshToken = async (userId, tokenHash, family, expiresAt) =>
             family,
             expiresAt,
             revoked: false,
-        }
-    })
-}
+            deviceId: deviceId ?? null,
+            userAgent: userAgent ?? null,
+            ip: ip ?? null,
+        },
+    });
+};
 
-// find the stored refresh token 
+// find the stored refresh token
 export const findRefreshToken = async (tokenHash) => {
     const db = getPrisma();
     return db.refreshToken.findUnique({
         where: {
-            tokenHash
+            tokenHash,
         },
         select: {
             id: true,
@@ -88,18 +105,18 @@ export const findRefreshToken = async (tokenHash) => {
             family: true,
             expiresAt: true,
             revoked: true,
-        }
-    })
-}
+        },
+    });
+};
 
 // revoke every token in a family
 export const revokeRefreshTokenFamily = async (family) => {
     const db = getPrisma();
     return db.refreshToken.updateMany({
         where: { family },
-        data: { revoked: true }
-    })
-}
+        data: { revoked: true },
+    });
+};
 
 // revoke a single refresh token by its DB id (used during normal rotation)
 export const revokeRefreshToken = async (id) => {
@@ -108,9 +125,9 @@ export const revokeRefreshToken = async (id) => {
         where: { id },
         data: { revoked: true },
     });
-}
+};
 
-// Revoke ALL non-revoked refresh tokens for a user (logout-all / password reset) 
+// Revoke ALL non-revoked refresh tokens for a user (logout-all / password reset)
 export const revokeAllUserRefreshTokens = async (userId) => {
     const db = getPrisma();
     return db.refreshToken.updateMany({
@@ -151,7 +168,11 @@ export const findUserByEmail = async (email) => {
     const db = getPrisma();
     return db.user.findUnique({
         where: { email },
-        select: { id: true, username: true, email: true, isActive: true, authProvider: true },
+        select: {
+            id: true,
+            email: true,
+            isActive: true,
+        },
     });
 };
 
