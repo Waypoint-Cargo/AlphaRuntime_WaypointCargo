@@ -171,6 +171,7 @@ export const findUserByEmail = async (email) => {
         select: {
             id: true,
             email: true,
+            fullName: true,
             isActive: true,
         },
     });

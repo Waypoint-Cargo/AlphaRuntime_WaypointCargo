@@ -11,8 +11,6 @@ import {
     lockUserUntil,
     incrementFailedAttempts,
     resetLoginTracking,
-    invalidateUserPasswordResets,
-    createPasswordReset,
     findPasswordReset,
     markPasswordResetUsed,
     updateUserPassword,
@@ -34,6 +32,7 @@ import {
     hashRefreshToken,
     signAccessToken,
     signRefreshToken,
+    verifyAccessToken,
     verifyRefreshToken,
 } from "../../utils/tokens.js";
 import { config } from "../../config/env.js";
@@ -42,7 +41,7 @@ import {
     setUserInvalidateBefore,
 } from "../../utils/tokenBlocklist.js";
 import { getPrisma } from "../../config/database.js";
-//import { sendPasswordReset, sendRegistrationConfirmation } from "../email/email.service.js";
+import { sendPasswordResetEmail } from "../email/email.service.js";
 
 const DUMMY_HASH =
     "$2b$12$IgJ8jdQ5K5KmOFb1JXfkXOo2qKFQxB1e5c.L9Kn8dGdRsWQyVhDOq";
@@ -283,14 +282,17 @@ export const logoutAllService = async ({ userId, accessToken }) => {
 
 export const forgotPasswordService = async ({ email }) => {
     const user = await findUserByEmail(email);
-    if (!user) return;
+    // Silently no-op for unknown or deactivated accounts — the controller
+    // always returns the same generic message, so this never leaks who has
+    // an account.
+    if (!user || !user.isActive) return;
 
     const rawToken = crypto.randomBytes(32).toString("hex");
     const tokenHash = hashRefreshToken(rawToken);
     const expiresAt = new Date(Date.now() + config.passwordResetExpiryInMs);
 
     // create a reset url with the raw token
-    const resetUrl = `${config.allowedOrigins[0]}/reset-password?token=${rawToken}`;
+    const resetUrl = `${config.frontendUrl}/reset-password?token=${rawToken}`;
 
     const db = getPrisma();
     await db.$transaction(async (tx) => {
@@ -298,9 +300,9 @@ export const forgotPasswordService = async ({ email }) => {
         await invalidateUserPasswordResetsTx(tx, user.id);
         // store the new reset token
         await createPasswordResetTx(tx, user.id, tokenHash, expiresAt);
-        // create the email job in the database
-        //await sendPasswordReset(user, resetUrl, tx);
     });
+
+    await sendPasswordResetEmail(user, resetUrl);
 };
 
 export const resetPasswordService = async ({ token, newPassword }) => {
