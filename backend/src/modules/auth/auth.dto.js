@@ -1,6 +1,6 @@
 /**
  *  DTO - Data Transfer Object
- *  These transformers strip sensitive data and produce the exact shape 
+ *  These transformers strip sensitive data and produce the exact shape
  *  that the API layer should send back to the client.
  *
  * RULE:
@@ -11,9 +11,13 @@ export const toUserDTO = (user) => ({
     id: user.id,
     username: user.username,
     email: user.email,
+    employeeNumber: user.employeeNumber,
+    fullName: user.fullName,
+    phone: user.phone ?? null,
     role: user.role,
     avatarUrl: user.avatarUrl ?? null,
     authProvider: user.authProvider ?? 'local',
+    isApproved: user.isApproved,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
 });
@@ -30,7 +34,8 @@ export const toRegistrationResponseDTO = (user) => ({
     user: toUserDTO(user)
 });
 
-// Shapes the data payload returned to the client after a successful refresh.
+// Shapes the data payload returned to the client after a successful refresh
+// (also after a password change, which starts a fresh session for the caller).
 export const toRefreshResponseDTO = (accessToken, refreshToken) => ({
     accessToken,
     refreshToken

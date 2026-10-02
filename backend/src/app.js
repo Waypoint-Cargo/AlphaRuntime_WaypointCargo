@@ -30,7 +30,7 @@ app.use(
       origin: config.allowedOrigins,
       credentials: true, // Allow cookies in cross-origin requests (needed for refresh tokens)
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+      allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Idempotency-Key"],
    }),
 );
 
@@ -40,6 +40,13 @@ app.use(cookieParser());
 // Compresses response bodies using gzip/deflate. Reduces bandwidth usage by
 // 60-80% for JSON/text responses. Browsers handle decompression transparently.
 app.use(compression());
+
+// A sync batch carries up to 50 offline changes, so it gets a larger limit. These parsers have to come
+// before the global one below: once a body has been parsed, the later parser leaves it alone.
+app.use("/api/sync", express.json({ limit: "256kb" }));
+
+// A forecast import carries up to 5000 rows (about 1 MB).
+app.use("/api/forecast/import", express.json({ limit: "2mb" }));
 
 // Limit request body size to 10KB to prevent payload-based DoS attacks.
 // urlencoded with extended:true supports rich objects and arrays via qs library.

@@ -8,6 +8,8 @@ export default defineConfig({
    // Migration files location
    migrations: {
       path: "prisma/migrations",
+      // `npm run db:seed` — creates the first ADMIN from the ADMIN_* env vars
+      seed: "node prisma/seed.js",
    },
 
    datasource: {

@@ -2,6 +2,8 @@ import app from "./app.js";
 import { connectDatabase } from "./config/database.js";
 import { config } from "./config/env.js";
 import logger from "./config/logger.js";
+import { startCleanupJob } from "./jobs/cleanupExpiredTokens.js";
+import { startIdempotencyCleanupJob } from "./jobs/cleanupIdempotencyKeys.js";
 
 let server = null;
 let isShuttingDown = false;
@@ -18,6 +20,10 @@ const startServer = async () => {
          pid: process.pid,
          nodeVersion: process.version,
       });
+
+      // background clean-up jobs: each runs now and then every 24 hours
+      startCleanupJob();
+      startIdempotencyCleanupJob();
    });
 
    // keepAliveTimeout = How long can this connection sit idle before I close it

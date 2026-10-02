@@ -13,11 +13,13 @@ export const signAccessToken = (user) => {
 
 // signs a new refresh token containing the user's id and the token's DB family.
 // the family allows us to group all rotations from the same login session.
+// jwtid (jti) makes every token unique: without it, two tokens signed for the same
+// user + family in the same second are byte-identical and collide on RefreshToken.tokenHash.
 export const signRefreshToken = (user, family) => {
     return jwt.sign(
         { sub: user.id, username: user.username, family },
         config.refreshTokenSecret,
-        { expiresIn: config.refreshTokenExpiry }
+        { expiresIn: config.refreshTokenExpiry, jwtid: crypto.randomUUID() }
     )
 }
 

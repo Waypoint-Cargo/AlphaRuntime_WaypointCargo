@@ -1,9 +1,51 @@
 import { Router } from "express";
 import authRoutes from "../modules/auth/auth.routes.js";
+import usersRoutes from "../modules/users/users.routes.js";
+import settingsRoutes from "../modules/settings/settings.routes.js";
+import auditRoutes from "../modules/audit/audit.routes.js";
+import notificationsRoutes from "../modules/notifications/notifications.routes.js";
+import referenceRoutes from "../modules/reference/reference.routes.js";
+import fleetRoutes from "../modules/fleet/fleet.routes.js";
+import ordersRoutes from "../modules/orders/orders.routes.js";
+import tripsRoutes from "../modules/trips/trips.routes.js";
+import allocationsRoutes from "../modules/allocations/allocations.routes.js";
+import plansRoutes from "../modules/plans/plans.routes.js";
+import deferralsRoutes from "../modules/deferrals/deferrals.routes.js";
+import filesRoutes from "../modules/files/files.routes.js";
+import issuesRoutes from "../modules/issues/issues.routes.js";
+import loadingRoutes from "../modules/loading/loading.routes.js";
+import deliveriesRoutes from "../modules/deliveries/deliveries.routes.js";
+import receiptsRoutes from "../modules/receipts/receipts.routes.js";
+import syncRoutes from "../modules/sync/sync.routes.js";
+import trackingRoutes from "../modules/tracking/tracking.routes.js";
+import dashboardsRoutes from "../modules/dashboards/dashboards.routes.js";
+import employeesRoutes from "../modules/employees/employees.routes.js";
+import forecastRoutes from "../modules/forecast/forecast.routes.js";
 
 const router = Router();
 
-//router.use('/auth', authRoutes);
+router.use('/auth', authRoutes);
+router.use('/users', usersRoutes);
+router.use('/settings', settingsRoutes);
+router.use('/audit', auditRoutes);
+router.use('/notifications', notificationsRoutes);
+router.use('/reference', referenceRoutes);
+router.use('/fleet', fleetRoutes);
+router.use('/orders', ordersRoutes);
+router.use('/trips', tripsRoutes);
+router.use('/allocations', allocationsRoutes);
+router.use('/plans', plansRoutes);
+router.use('/deferrals', deferralsRoutes);
+router.use('/files', filesRoutes);
+router.use('/issues', issuesRoutes);
+router.use('/loading', loadingRoutes);
+router.use('/deliveries', deliveriesRoutes);
+router.use('/receipts', receiptsRoutes);
+router.use('/sync', syncRoutes);
+router.use('/tracking', trackingRoutes);
+router.use('/dashboards', dashboardsRoutes);
+router.use('/employees', employeesRoutes);
+router.use('/forecast', forecastRoutes);
 // add all routes here...
 
 export default router;

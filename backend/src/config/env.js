@@ -1,4 +1,9 @@
 import "dotenv/config";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// the backend folder (two levels above src/config), used to resolve relative storage paths
+const backendRoot = fileURLToPath(new URL("../../", import.meta.url));
 
 const parseInteger = (value, fallback) => {
     const parsed = Number.parseInt(value ?? "", 10);
@@ -72,9 +77,23 @@ export const config = Object.freeze({
     maxLoginAttempts: parseInteger(process.env.MAX_LOGIN_ATTEMPTS, 3),
     lockoutDurationMs: parseInteger(process.env.LOCKOUT_DURATION_MS, 15 * 60 * 1000),
 
-    // 15 * 60 * 1000 = 1.5min 
+    // 15 * 60 * 1000 = 15min
     passwordResetExpiryInMs: parseInteger(process.env.PASSWORD_RESET_EXPIRY_MS, 900000),
 
+    // Where uploaded files (signatures, proof-of-delivery and issue photos) are kept on disk.
+    // Relative paths are resolved against the backend folder. Back this folder up in production.
+    fileStorageDir: path.resolve(backendRoot, process.env.FILE_STORAGE_DIR || "storage/uploads"),
+
+    // Outgoing mail (password reset). Optional: when SMTP_HOST is empty the mailer
+    // only logs the message in development and refuses to send in production.
+    smtp: Object.freeze({
+        host: process.env.SMTP_HOST ?? "",
+        port: parseInteger(process.env.SMTP_PORT, 587),
+        secure: parseBoolean(process.env.SMTP_SECURE, false),
+        user: process.env.SMTP_USER ?? "",
+        pass: process.env.SMTP_PASS ?? "",
+        from: process.env.MAIL_FROM ?? "Waypoint Cargo <no-reply@waypointcargo.local>",
+    }),
 
     logLevel: process.env.LOG_LEVEL ?? (nodeEnv === "production" ? "info" : "debug"),
 });
