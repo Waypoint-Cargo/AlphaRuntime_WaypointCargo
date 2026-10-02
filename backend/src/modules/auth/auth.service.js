@@ -11,6 +11,7 @@ import {
     lockUserUntil,
     incrementFailedAttempts,
     resetLoginTracking,
+    updateLastLogin,
     findPasswordReset,
     markPasswordResetUsed,
     updateUserPassword,
@@ -54,13 +55,13 @@ const UNAPPROVED_MESSAGE =
     "Your account is awaiting administrator approval. You will be able to sign in once it has been approved.";
 
 export const loginService = async ({
-    employeeNumber,
+    identifier,
     password,
     deviceId,
     userAgent,
     ip,
 }) => {
-    const user = await findUserForLogin(employeeNumber);
+    const user = await findUserForLogin(identifier);
 
     // check account status
     if (user?.lockedUntil && user.lockedUntil > new Date()) {
@@ -113,6 +114,8 @@ export const loginService = async ({
     if (user.failedAttempts > 0 || user.lockedUntil !== null) {
         await resetLoginTracking(user.id);
     }
+
+    await updateLastLogin(user.id);
 
     // issue tokens
     // A new family UUID groups all refresh token rotations from this login.

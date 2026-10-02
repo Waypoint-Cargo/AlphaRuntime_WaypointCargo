@@ -45,26 +45,46 @@ export const passwordResetTemplate = ({ fullName, resetUrl, expiryMinutes }) => 
         `If you didn't request this, you can safely ignore this email.`,
 });
 
+// A single row in the approval email's details table.
+const detailRow = (label, value) => `
+    <tr>
+        <td style="padding:6px 0;font-size:13px;color:#64748b;white-space:nowrap;">${label}</td>
+        <td style="padding:6px 0 6px 16px;font-size:14px;font-weight:600;color:#0f172a;">${value}</td>
+    </tr>
+`;
+
 // Account approval notice — sent once a Store Manager approves a self sign-up.
-export const accountApprovedTemplate = ({ fullName, employeeNumber }) => ({
+export const accountApprovedTemplate = ({ fullName, email, employeeNumber, role, outlet }) => ({
     subject: "Your Waypoint Cargo account has been approved",
     html: `
         ${brandHeader("Account approved")}
         <p style="font-size:14px;line-height:1.6;">Hi ${fullName},</p>
         <p style="font-size:14px;line-height:1.6;">
-            Good news — your Waypoint Cargo account has been approved. You can now sign in using the
-            employee number below.
+            Good news — your Waypoint Cargo account has been approved. Here are your account details:
         </p>
-        <p style="font-size:16px;font-weight:600;background-color:#f1f5f9;padding:12px 16px;border-radius:6px;
-            display:inline-block;letter-spacing:0.5px;">${employeeNumber}</p>
+        <table style="border-collapse:collapse;margin:8px 0 20px;">
+            ${detailRow("Employee number", employeeNumber)}
+            ${detailRow("Role", role)}
+            ${detailRow("Outlet", `${outlet.name} (${outlet.code})`)}
+            ${detailRow("District", outlet.district)}
+        </table>
         <p style="font-size:14px;line-height:1.6;">
-            Use this employee number with the password you chose at sign-up to log in.
+            To sign in, use the <strong>same password you created when you registered</strong> —
+            there's nothing new to set up. You can log in with either:
         </p>
+        <ul style="font-size:14px;line-height:1.6;padding-left:20px;">
+            <li>Your employee number: <strong>${employeeNumber}</strong></li>
+            <li>Your email address: <strong>${email}</strong></li>
+        </ul>
         ${brandFooter}
     `,
     text:
         `Hi ${fullName},\n\n` +
-        `Good news — your Waypoint Cargo account has been approved.\n` +
-        `Your employee number: ${employeeNumber}\n\n` +
-        `Use it with the password you chose at sign-up to log in.`,
+        `Good news — your Waypoint Cargo account has been approved. Here are your account details:\n\n` +
+        `Employee number: ${employeeNumber}\n` +
+        `Role: ${role}\n` +
+        `Outlet: ${outlet.name} (${outlet.code})\n` +
+        `District: ${outlet.district}\n\n` +
+        `To sign in, use the same password you created when you registered. ` +
+        `You can log in with either your employee number (${employeeNumber}) or your email address (${email}).`,
 });

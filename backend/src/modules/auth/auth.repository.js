@@ -53,11 +53,13 @@ export const createUserTx = (
     });
 };
 
-// find user by username for login
-export const findUserForLogin = async (employeeNumber) => {
+// find user for login by employee number OR email (either can be used to sign in)
+export const findUserForLogin = async (identifier) => {
     const db = getPrisma();
-    return db.user.findUnique({
-        where: { employeeNumber },
+    return db.user.findFirst({
+        where: {
+            OR: [{ employeeNumber: identifier }, { email: identifier }],
+        },
         select: {
             ...userSessionSelect,
             failedAttempts: true,
@@ -160,6 +162,15 @@ export const resetLoginTracking = async (userId) => {
     return db.user.update({
         where: { id: userId },
         data: { failedAttempts: 0, lockedUntil: null },
+    });
+};
+
+// record the timestamp of a successful login
+export const updateLastLogin = async (userId) => {
+    const db = getPrisma();
+    return db.user.update({
+        where: { id: userId },
+        data: { lastLoginAt: new Date() },
     });
 };
 

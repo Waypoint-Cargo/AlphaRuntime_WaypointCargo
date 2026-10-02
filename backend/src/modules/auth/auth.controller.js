@@ -61,10 +61,10 @@ const readRefreshToken = (req) => {
 
 // catchAsync wraps this function  → any thrown error goes to errorHandler
 export const loginController = async (req, res) => {
-    const { employeeNumber, password, deviceId } = req.body;
+    const { identifier, password, deviceId } = req.body;
 
     const result = await loginService({
-        employeeNumber,
+        identifier,
         password,
         deviceId,
         ...clientInfo(req),

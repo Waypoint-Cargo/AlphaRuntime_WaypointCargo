@@ -6,13 +6,16 @@ const registrableRole = z.enum(
     { error: 'Role must be one of DISPATCHER, LOADER, DRIVER, STORE_MANAGER' },
 );
 
-const sanitizedEmployeeNumber = z
+// Login accepts either an employee number or an email address in the same field.
+const loginIdentifier = z
     .string()
     .trim()
     .toLowerCase()
-    .regex(
-        /^[a-z0-9_]{3,20}$/,
-        'Employee number must be 3-20 characters: letters, numbers and underscores only'
+    .min(3, "Employee number or email is required")
+    .max(254, "Invalid employee number or email")
+    .refine(
+        (val) => !/[\x00\x08\x1a]/.test(val),
+        "Employee number or email contains invalid characters",
     );
 
 const strongPassword = z
@@ -42,7 +45,7 @@ const sanitizedEmail = z
 // login schema
 export const loginSchema = z.object({
     body: z.object({
-        employeeNumber: sanitizedEmployeeNumber,
+        identifier: loginIdentifier,
         password: z
             .string()
             .min(8, "Invalid credentials")
