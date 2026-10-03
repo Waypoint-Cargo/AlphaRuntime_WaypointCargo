@@ -1,30 +1,31 @@
 import React from 'react';
+import { NavLink, Outlet } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Package, 
-  Map, 
+  Map as MapIcon, 
   Truck, 
   Car, 
-  Users, 
+  History, 
   User, 
   Settings, 
   LogOut,
   Bell
 } from 'lucide-react';
 
-export default function MainLayout({ children }) {
+export default function MainLayout() {
   const sidebarLinks = [
-    { name: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-    { name: 'Orders', icon: <Package size={20} /> },
-    { name: 'Plan & Allocate', icon: <Map size={20} /> },
-    { name: 'Track Deliveries', icon: <Truck size={20} /> },
-    { name: 'Fleet', icon: <Car size={20} /> },
-    { name: 'Referrals', icon: <Users size={20} /> },
+    { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
+    { name: 'Orders', path: '/orders', icon: <Package size={20} /> },
+    { name: 'Plan & Allocate', path: '/plan-and-allocate', icon: <MapIcon size={20} /> },
+    { name: 'Track Deliveries', path: '/track-deliveries', icon: <Truck size={20} /> },
+    { name: 'Fleet', path: '/fleet', icon: <Car size={20} /> },
+    { name: 'Deferrals', path: '/deferrals', icon: <History size={20} /> },
   ];
 
   const bottomLinks = [
-    { name: 'Profile', icon: <User size={20} />, active: true },
-    { name: 'Settings', icon: <Settings size={20} /> },
+    { name: 'Profile', path: '/profile', icon: <User size={20} /> },
+    { name: 'Settings', path: '/settings', icon: <Settings size={20} /> },
   ];
 
   return (
@@ -45,40 +46,37 @@ export default function MainLayout({ children }) {
 
         <nav className="flex-1 px-4 py-4 space-y-1">
           {sidebarLinks.map((link) => (
-            <a 
+            <NavLink 
               key={link.name} 
-              href="#" 
-              className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-white/10 transition-colors"
+              to={link.path}
+              className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                isActive ? 'bg-[#FFC107] text-[#053D31]' : 'text-gray-300 hover:bg-white/10'
+              }`}
             >
               {link.icon}
               <span className="text-sm font-medium">{link.name}</span>
-            </a>
+            </NavLink>
           ))}
         </nav>
 
         <div className="px-4 py-4 space-y-1 mb-4">
           {bottomLinks.map((link) => (
-            <a 
+            <NavLink 
               key={link.name} 
-              href="#" 
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                link.active 
-                  ? 'bg-[#FFC107] text-[#053D31]' 
-                  : 'text-gray-300 hover:bg-white/10'
+              to={link.path}
+              className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                isActive ? 'bg-[#FFC107] text-[#053D31]' : 'text-gray-300 hover:bg-white/10'
               }`}
             >
               {link.icon}
               <span className="text-sm font-medium">{link.name}</span>
-            </a>
+            </NavLink>
           ))}
           <div className="pt-2 mt-2">
-            <a 
-              href="#" 
-              className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-white/10 transition-colors"
-            >
+            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-white/10 transition-colors">
               <LogOut size={20} />
               <span className="text-sm font-medium">Log Out</span>
-            </a>
+            </button>
           </div>
         </div>
       </aside>
@@ -96,8 +94,8 @@ export default function MainLayout({ children }) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">
-          {children}
+        <main className="flex-1 overflow-y-auto p-6 md:p-8 relative">
+          <Outlet />
         </main>
       </div>
     </div>
