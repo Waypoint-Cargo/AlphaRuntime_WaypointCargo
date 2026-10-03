@@ -40,7 +40,7 @@ export const loginSchema = z.object({
 });
 
 // Register
-export const registerSchema = z
+export const registerFormSchema = z
    .object({
       username: usernameField,
       email: emailField,
@@ -94,3 +94,35 @@ export function getPasswordStrength(password) {
    };
    return { score, level, color: colorMap[level] };
 }
+
+
+export const ROLE_OPTIONS = [
+    { value: "dispatcher", label: "Dispatcher" },
+    { value: "loader", label: "Loader" },
+    { value: "driver", label: "Driver" },
+    { value: "store_manager", label: "Store manager" },
+];
+
+export const registerAccountSchema = z
+    .object({
+        fullName: z.string().trim().min(2, "Enter your full name"),
+        email: emailField,
+        countryCode: z.string(),
+        phone: z
+            .string()
+            .transform((v) => v.replace(/[\s-]/g, ""))
+            .pipe(z.string().regex(/^[1-9]\d{8}$/, "Enter a 9-digit mobile number, e.g. 77 123 4567")),
+        password: strongPasswordField,
+        confirmPassword: z.string().min(1, "Please confirm your password"),
+        role: z.enum(
+            ROLE_OPTIONS.map((r) => r.value),
+            { errorMap: () => ({ message: "Select your role" }) },
+        ),
+        terms: z.literal(true, {
+            errorMap: () => ({ message: "You must accept the terms to continue" }),
+        }),
+    })
+    .refine((d) => d.password === d.confirmPassword, {
+        path: ["confirmPassword"],
+        message: "Passwords do not match",
+    });
