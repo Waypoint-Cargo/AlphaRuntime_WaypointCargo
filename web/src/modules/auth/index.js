@@ -26,7 +26,8 @@ export {
 // Validation
 export {
    loginSchema,
-   registerSchema,
+   registerFormSchema,
+   registerAccountSchema,
    forgotPasswordSchema,
    resetPasswordSchema,
    getPasswordStrength,
