@@ -14,6 +14,8 @@ import {
   Snowflake,
   AlertCircle
 } from 'lucide-react';
+import { useAppSelector } from '@/store/hooks';
+import { selectUser } from '@/modules/auth/slices/authSlice';
 
 // MOCK DATA for easy backend connection later
 const mockDashboardData = {
@@ -76,13 +78,14 @@ const mockDashboardData = {
 
 export default function DispatcherDashboard() {
   const data = mockDashboardData;
+  const user = useAppSelector(selectUser);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Good morning, {data.userName}</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Good morning, {user?.fullName ?? data.userName}</h1>
         <p className="text-gray-500 text-sm mt-1">Here's what's happening with today's delivery operations</p>
       </div>
 

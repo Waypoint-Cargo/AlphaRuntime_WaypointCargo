@@ -1,4 +1,3 @@
-import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -12,19 +11,28 @@ import {
   LogOut,
   Bell
 } from 'lucide-react';
+import { useAppSelector } from '@/store/hooks';
+import { selectUser } from '@/modules/auth/slices/authSlice';
+import { useLogout } from '@/modules/auth/hooks/useLogout';
+import { ROLE_PROFILE, ROUTES } from '@/constants/app.constants';
+import { getInitials } from '@/shared/utils/userUtils';
 
+// Dispatcher shell (sidebar + header). Only reachable for the DISPATCHER role.
 export default function MainLayout() {
+  const user = useAppSelector(selectUser);
+  const { logout, isLoggingOut } = useLogout();
+
   const sidebarLinks = [
-    { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
-    { name: 'Orders', path: '/orders', icon: <Package size={20} /> },
-    { name: 'Plan & Allocate', path: '/plan-and-allocate', icon: <MapIcon size={20} /> },
-    { name: 'Track Deliveries', path: '/track-deliveries', icon: <Truck size={20} /> },
-    { name: 'Fleet', path: '/fleet', icon: <Car size={20} /> },
-    { name: 'Deferrals', path: '/deferrals', icon: <History size={20} /> },
+    { name: 'Dashboard', path: ROUTES.DISPATCHER_DASHBOARD, icon: <LayoutDashboard size={20} /> },
+    { name: 'Orders', path: ROUTES.DISPATCHER_ORDERS, icon: <Package size={20} /> },
+    { name: 'Plan & Allocate', path: ROUTES.DISPATCHER_PLAN, icon: <MapIcon size={20} /> },
+    { name: 'Track Deliveries', path: ROUTES.DISPATCHER_TRACKING, icon: <Truck size={20} /> },
+    { name: 'Fleet', path: ROUTES.DISPATCHER_FLEET, icon: <Car size={20} /> },
+    { name: 'Deferrals', path: ROUTES.DISPATCHER_DEFERRALS, icon: <History size={20} /> },
   ];
 
   const bottomLinks = [
-    { name: 'Profile', path: '/profile', icon: <User size={20} /> },
+    { name: 'Profile', path: ROUTES.DISPATCHER_PROFILE, icon: <User size={20} /> },
     { name: 'Settings', path: '/settings', icon: <Settings size={20} /> },
   ];
 
@@ -73,9 +81,14 @@ export default function MainLayout() {
             </NavLink>
           ))}
           <div className="pt-2 mt-2">
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-white/10 transition-colors">
+            <button
+              type="button"
+              onClick={logout}
+              disabled={isLoggingOut}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-white/10 transition-colors disabled:opacity-60"
+            >
               <LogOut size={20} />
-              <span className="text-sm font-medium">Log Out</span>
+              <span className="text-sm font-medium">{isLoggingOut ? 'Signing out…' : 'Log Out'}</span>
             </button>
           </div>
         </div>
@@ -88,9 +101,16 @@ export default function MainLayout() {
            <button className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors">
               <Bell size={20} />
            </button>
-           <button className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white font-medium hover:bg-white/20 transition-colors">
-              AR
-           </button>
+           <NavLink
+              to={ROLE_PROFILE[user?.role] ?? ROUTES.DISPATCHER_PROFILE}
+              title={user?.fullName ? `${user.fullName} · My profile` : 'My profile'}
+              aria-label="My profile"
+              className={({ isActive }) => `w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white font-medium hover:bg-white/20 transition-colors ${
+                isActive ? 'ring-2 ring-[#FFC107]' : ''
+              }`}
+           >
+              {getInitials(user?.fullName)}
+           </NavLink>
         </header>
 
         {/* Page Content */}

@@ -1,101 +1,113 @@
 import { fetchBaseQuery } from "@reduxjs/toolkit/query";
 import { tokenService } from "./tokenService";
-import { logout } from "@/modules/auth/slices/authSlice";
+import { sessionExpired, tokenRefreshed } from "@/modules/auth/slices/authActions";
 
-// Use RTK queries to send HTTP requests to the backend
-
-// ---------------------------------------------------------------------------
-// Cache-reset registry
-// ---------------------------------------------------------------------------
-// We cannot import notesApi / profileApi here directly — they import
-// baseQueryWithReauth themselves, which would create a circular module
-// dependency and crash at runtime.
+// All HTTP traffic to the backend goes through this file.
 //
-// Instead, external modules (authApi, profileApi) register a callback once
-// their own module has fully initialised. We call those callbacks lazily at
-// runtime, so there is never an import-time cycle.
-// ---------------------------------------------------------------------------
-const _cacheResetFns = [];
+//   rawBaseQuery          – one request: sends cookies, the Bearer token and the CSRF header
+//   refreshAccessToken    – POST /auth/refresh (httpOnly cookie), shared by every caller
+//   baseQueryWithReauth   – rawBaseQuery + "401 -> refresh -> retry once"
+//
+// Endpoints that must never trigger a refresh (login, register, refresh itself,
+// logout, forgot/reset password) pass `extraOptions: { skipReauth: true }`.
 
-/** Call this from any API module to register a cache-wipe callback. */
-export function registerCacheReset(fn) {
-   _cacheResetFns.push(fn);
-}
-
-function resetAllCaches(dispatch) {
-   _cacheResetFns.forEach((fn) => fn(dispatch));
-}
-
-// ---------------------------------------------------------------------------
-
-// Raw base query  - attach access token, include cookies, include header to indicate the request is coming from our SPA
 export const rawBaseQuery = fetchBaseQuery({
    baseUrl: (import.meta.env.VITE_API_BASE_URL || "") + "/api",
    prepareHeaders: (headers) => {
-      //attach the token from in-memory
+      // attach the access token held in memory
       const token = tokenService.getToken();
       if (token) {
          headers.set("Authorization", `Bearer ${token}`);
       }
 
-      // CSRF defence - tell server this request came from our SPA(Single Page Application)
+      // The backend rejects cookie-based refresh/logout calls without this header (CSRF defence)
       headers.set("X-Requested-With", "XMLHttpRequest");
       return headers;
    },
+   // send/receive the httpOnly refresh-token cookie
    credentials: "include",
 });
 
-// To prevent multiple refresh requests at the same time (which would waste API calls),
-let _refreshPromise = null;
+// ---------------------------------------------------------------------------
+// Token refresh
+// ---------------------------------------------------------------------------
 
-// Send API requests, if occurs 401 error try to refresh the access token and retry the request, if it fails log out the user
+// The backend rotates the refresh token on every call and treats a second use of
+// an old one as theft (it revokes the whole session). So two refreshes must never
+// run with the same cookie: one at a time within this tab (the promise below) and
+// one at a time across tabs (Web Locks), e.g. a browser reopening several tabs.
+const REFRESH_LOCK = "waypoint-auth-refresh";
+let refreshInFlight = null;
+
+const withRefreshLock = (task) =>
+   typeof navigator !== "undefined" && navigator.locks?.request
+      ? navigator.locks.request(REFRESH_LOCK, task)
+      : task();
+
+async function requestNewAccessToken(api) {
+   // Don't tie this shared request to one caller's AbortSignal
+   const result = await rawBaseQuery(
+      { url: "/auth/refresh", method: "POST" },
+      { dispatch: api.dispatch, getState: api.getState },
+      {},
+   );
+
+   const accessToken = result.data?.data?.accessToken;
+   if (accessToken) {
+      tokenService.setToken(accessToken);
+      // lets the slice pick up a changed role from the new token
+      api.dispatch(tokenRefreshed(accessToken));
+      return { accessToken };
+   }
+
+   // 401/403 = the cookie is missing, expired, revoked or the account was disabled,
+   // so the session is really over. Anything else (offline, 429, 5xx) is transient and
+   // must not log the user out — the cookie is still good.
+   const status = result.error?.status;
+   return { error: result.error, sessionInvalid: status === 401 || status === 403 };
+}
+
+// Resolves to { accessToken } on success, or { error, sessionInvalid } on failure.
+// Concurrent callers share a single request.
+export function refreshAccessToken(api) {
+   if (!refreshInFlight) {
+      refreshInFlight = withRefreshLock(() => requestNewAccessToken(api)).finally(() => {
+         refreshInFlight = null;
+      });
+   }
+   return refreshInFlight;
+}
+
+// ---------------------------------------------------------------------------
+// Request with automatic re-authentication
+// ---------------------------------------------------------------------------
+
+// 1. send the request  2. on 401 refresh the access token  3. retry the request once
+// If the refresh shows the session is over, end it locally (-> login page).
 export const baseQueryWithReauth = async (args, api, extraOptions) => {
-   // Execute original request
-   let result = await rawBaseQuery(args, api, extraOptions);
+   const tokenUsed = tokenService.getToken();
+   const result = await rawBaseQuery(args, api, extraOptions);
 
-   const url = typeof args === "string" ? args : args.url;
+   if (result.error?.status !== 401 || extraOptions?.skipReauth) {
+      return result;
+   }
 
-   //  Handle 401 Unauthorized (try to get new access token)
-   if (
-      result.error?.status === 401 &&
-      !url.includes("/auth/login") &&
-      !url.includes("/auth/refresh")
-   ) {
-      // If a refresh is not already in progress, start one
-      if (!_refreshPromise) {
-         _refreshPromise = rawBaseQuery(
-            { url: "/auth/refresh", method: "POST" },
-            api,
-            extraOptions,
-         );
-      }
-      // Wait for the refresh promise (either the one we just started, or one already in flight)
-      const refreshResult = await _refreshPromise;
+   // Another request may already have refreshed while this one was in flight —
+   // then just retry with the newer token instead of rotating the cookie again.
+   const currentToken = tokenService.getToken();
+   if (currentToken && currentToken !== tokenUsed) {
+      return rawBaseQuery(args, api, extraOptions);
+   }
 
-      // Clear the promise so subsequent 401s can trigger a new refresh if needed
-      // (This runs for every waiting call, but resetting to null is idempotent)
-      _refreshPromise = null;
+   const refreshed = await refreshAccessToken(api);
 
-      if ("data" in refreshResult && refreshResult.data) {
-         // store the access token
-         const payload = refreshResult.data;
-         tokenService.setToken(payload.data.accessToken);
+   if (refreshed.accessToken) {
+      return rawBaseQuery(args, api, extraOptions);
+   }
 
-         // retry the original request
-         result = await rawBaseQuery(args, api, extraOptions);
-      } else {
-         // refresh failed -> logout locally and wipe ALL cached API data so the
-         // next user never sees this user's stale notes or profile.
-         const d = api.dispatch;
-         resetAllCaches(d);
-         d(logout());
-         // Logout from backend to ensure HTTP-only cookies (like refresh token) are cleared
-         await rawBaseQuery(
-            { url: "/auth/logout", method: "POST" },
-            api,
-            extraOptions,
-         );
-      }
+   if (refreshed.sessionInvalid) {
+      tokenService.clearToken();
+      api.dispatch(sessionExpired());
    }
 
    return result;
