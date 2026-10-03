@@ -87,7 +87,7 @@ export const loginService = async ({
                 await lockUserUntil(user.id, lockedUntil);
                 throw new AppError(
                     `Account locked after ${MAX_FAILED_ATTEMPTS} failed attempts. ` +
-                        `Try again in ${LOCKOUT_DURATION_MS / 60_000} minute(s).`,
+                    `Try again in ${LOCKOUT_DURATION_MS / 60_000} minute(s).`,
                     429,
                 );
             }
@@ -157,7 +157,7 @@ export const registerService = async ({
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
     // Write the user row AND the email outbox job in a single transaction
-    /* If any function inside the transaction fails and throws an error, Prisma rolls back the entire $transaction, 
+    /* If any function inside the transaction fails and throws an error, Prisma rolls back the entire $transaction,
        so none of the operations are saved to the database.    */
     const db = getPrisma();
     const user = await db.$transaction(async (tx) => {

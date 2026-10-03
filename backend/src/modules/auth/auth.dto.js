@@ -1,6 +1,6 @@
 /**
  *  DTO - Data Transfer Object
- *  These transformers strip sensitive data and produce the exact shape 
+ *  These transformers strip sensitive data and produce the exact shape
  *  that the API layer should send back to the client.
  *
  * RULE:

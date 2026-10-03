@@ -139,14 +139,14 @@ authRouter.post('/logout-all',
     catchAsync(logoutAllController),
 );
 
-// POST /auth/forgot-password  
+// POST /auth/forgot-password
 authRouter.post('/forgot-password',
     forgotPasswordLimiter,
     validate(forgotPasswordSchema),
     catchAsync(forgotPasswordController),
 );
 
-// POST /auth/reset-password  
+// POST /auth/reset-password
 authRouter.post('/reset-password',
     resetPasswordLimiter,
     validate(resetPasswordSchema),

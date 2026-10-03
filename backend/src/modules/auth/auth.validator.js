@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Role} from "../../generated/prisma/index.js";
+import { Role } from "../../generated/prisma/index.js";
 
 const registrableRole = z.enum(
     [Role.DISPATCHER, Role.LOADER, Role.DRIVER, Role.STORE_MANAGER],
@@ -54,7 +54,7 @@ export const loginSchema = z.object({
                 (val) => !/[\x00\x08\x1a]/.test(val),
                 "Invalid credentials",
             ),
-         deviceId: z.string().trim().min(1).max(128).optional(),   
+        deviceId: z.string().trim().min(1).max(128).optional(),
     }),
 });
 

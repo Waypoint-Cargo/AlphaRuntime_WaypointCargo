@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { config } from '../config/env.js';
 
-// signs a new access token containing the user info 
+// signs a new access token containing the user info
 export const signAccessToken = (user) => {
     return jwt.sign(
         { sub: user.id, employeeNumber: user.employeeNumber, fullName: user.fullName, role: user.role },
@@ -21,12 +21,12 @@ export const signRefreshToken = (user, family) => {
     )
 }
 
-// verify access token 
+// verify access token
 export const verifyAccessToken = (token, options = {}) => {
     return jwt.verify(token, config.accessTokenSecret, options)
 }
 
-// verify refresh token 
+// verify refresh token
 export const verifyRefreshToken = (token) => {
     return jwt.verify(token, config.refreshTokenSecret)
 }

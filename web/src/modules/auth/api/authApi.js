@@ -63,11 +63,7 @@ export const authApi = createApi({
       logoutAll: build.mutation({
          query: () => ({ url: "/auth/logout-all", method: "POST" }),
          onQueryStarted: async (_, { dispatch, queryFulfilled }) => {
-            // Clear auth state and ALL cached API data so the next user
-            // never sees a previous user's notes/profile from the RTK Query cache.
             dispatch(logoutAction());
-            dispatch(notesApi.util.resetApiState());
-            dispatch(profileApi.util.resetApiState());
             try {
                await queryFulfilled;
             } catch {

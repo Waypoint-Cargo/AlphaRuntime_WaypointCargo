@@ -32,14 +32,11 @@ export const sendPasswordResetEmail = async (user, resetUrl) => {
     return sendMail({ to: user.email, subject, html, text });
 };
 
-// Sends the account approved email after a Store Manager approves a user.
+// Sends the account approved email after an admin approves a user.
 export const sendAccountApprovedEmail = async (user) => {
     const { subject, html, text } = accountApprovedTemplate({
         fullName: user.fullName,
-        email: user.email,
         employeeNumber: user.employeeNumber,
-        role: user.role,
-        outlet: user.outlet,
     });
 
     return sendMail({ to: user.email, subject, html, text });

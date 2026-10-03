@@ -58,8 +58,8 @@ export const baseQueryWithReauth = async (args, api, extraOptions) => {
    //  Handle 401 Unauthorized (try to get new access token)
    if (
       result.error?.status === 401 &&
-      !url.includes("/auth/login") &&
-      !url.includes("/auth/refresh")
+      !url.includes("/login") &&
+      !url.includes("/refresh")
    ) {
       // If a refresh is not already in progress, start one
       if (!_refreshPromise) {
