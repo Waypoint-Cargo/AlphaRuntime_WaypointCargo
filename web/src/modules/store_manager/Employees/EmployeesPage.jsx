@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RefreshCw, Search } from "lucide-react";
+import { RefreshCw, Search, X } from "lucide-react";
 
 import { useAppSelector } from "@/store/hooks";
 import { selectUser } from "@/modules/auth/slices/authSlice";
@@ -24,6 +24,101 @@ const TABS = [
 // Roles a person can register as (ADMIN has no self-registration)
 const ROLE_FILTERS = [USER_ROLES.DISPATCHER, USER_ROLES.LOADER, USER_ROLES.DRIVER, USER_ROLES.STORE_MANAGER];
 
+function AddEmployeeModal({ onClose }) {
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    role: "",
+    status: "Active",
+  });
+
+  const updateField = (field) => (event) => {
+    setForm((current) => ({ ...current, [field]: event.target.value }));
+  };
+
+  return (
+    <div className="overlay" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <div className="emp-modal" role="dialog" aria-modal="true" aria-labelledby="add-employee-title">
+        <div className="emp-modal-header">
+          <div>
+            <h2 id="add-employee-title">Add Employee</h2>
+            <p>Add a new team member to your store.</p>
+          </div>
+          <button type="button" className="x-btn" onClick={onClose} aria-label="Close add employee form">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="emp-fields">
+          <label className="emp-field">
+            <span>Name</span>
+            <input
+              type="text"
+              value={form.name}
+              placeholder="Enter full name"
+              onChange={updateField("name")}
+            />
+          </label>
+
+          <label className="emp-field">
+            <span>Email</span>
+            <input
+              type="email"
+              value={form.email}
+              placeholder="Enter email address"
+              onChange={updateField("email")}
+            />
+          </label>
+
+          <label className="emp-field">
+            <span>Phone</span>
+            <input
+              type="tel"
+              value={form.phone}
+              placeholder="Enter phone number (e.g. +94 77 123 4567)"
+              onChange={updateField("phone")}
+            />
+          </label>
+
+          <label className="emp-field">
+            <span>Role</span>
+            <div className="emp-select-wrap">
+              <select value={form.role} onChange={updateField("role")}>
+                <option value="">Select role</option>
+                {ROLE_FILTERS.map((value) => (
+                  <option key={value} value={value}>{ROLE_LABELS[value]}</option>
+                ))}
+              </select>
+              <ChevronDownIcon className="select-caret" />
+            </div>
+          </label>
+
+          <label className="emp-field">
+            <span>Status</span>
+            <div className="emp-select-wrap">
+              <select value={form.status} onChange={updateField("status")}>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+              <ChevronDownIcon className="select-caret" />
+            </div>
+          </label>
+        </div>
+
+        <div className="emp-modal-actions">
+          <button type="button" className="btn" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="button" className="btn primary emp-submit-button" onClick={onClose}>
+            Add Employee
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function loadErrorMessage(error) {
   if (!error) return null;
   if (error.status === 403) return "You don't have permission to manage employees.";
@@ -39,6 +134,7 @@ export default function EmployeesPage() {
   const [page, setPage] = useState(1);
   const [approveTarget, setApproveTarget] = useState(null);
   const [removeTarget, setRemoveTarget] = useState(null);
+  const [showAddEmployee, setShowAddEmployee] = useState(false);
   const [toast, setToast] = useState("");
   const toastTimer = useRef(null);
 
@@ -94,10 +190,16 @@ export default function EmployeesPage() {
       <Sidebar active="employees" />
       <main className="workspace">
         <div className="main-col">
-          <h1>Store Employees</h1>
-          <p className="subtitle">Approve new registrations and manage your store team.</p>
+          <div className="store-header-row">
+            <div>
+              <h1>Store Employees</h1>
+              <p className="subtitle">Manage your store team. Keep employee information up to date.</p>
+            </div>
 
-          <OrderTabs tabs={TABS} counts={counts} active={tab} onChange={changeTab} />
+            <button type="button" className="btn primary add-employee-btn" onClick={() => setShowAddEmployee(true)}>
+              + Add Employee
+            </button>
+          </div>
 
           <div className="filters">
             <div className="search-field">
@@ -122,6 +224,8 @@ export default function EmployeesPage() {
             </button>
           </div>
 
+          <OrderTabs tabs={TABS} counts={counts} active={tab} onChange={changeTab} />
+
           <EmployeesTable
             mode={tab}
             rows={rows}
@@ -142,6 +246,8 @@ export default function EmployeesPage() {
           />
         </div>
       </main>
+
+      {showAddEmployee && <AddEmployeeModal onClose={() => setShowAddEmployee(false)} />}
 
       {approveTarget && (
         <ApproveEmployeeModal
