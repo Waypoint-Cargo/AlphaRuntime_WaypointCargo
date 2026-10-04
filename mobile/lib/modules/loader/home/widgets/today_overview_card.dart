@@ -54,21 +54,13 @@ class TodayOverviewCard extends StatelessWidget {
                 label: 'Items to load',
                 value: itemsToLoad,
               ),
-              _buildMetricItem(
-                icon: Icons.access_time_rounded,
-                label: 'Est. load time',
-                value: estLoadTime,
-              ),
+             
               _buildMetricItem(
                 icon: Icons.local_shipping_outlined,
                 label: 'Departures',
                 value: departures,
               ),
-              _buildMetricItem(
-                icon: Icons.track_changes_rounded,
-                label: 'On-time target',
-                value: onTimeTarget,
-              ),
+      
             ],
           ),
         ],

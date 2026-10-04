@@ -19,15 +19,6 @@ export const toProfileDTO = (user) => ({
     approvalStatus: user.isApproved ? "APPROVED" : "PENDING",
     isApproved: user.isApproved,
     approvedAt: user.approvedAt,
-    outlet: user.outlet
-        ? {
-              id: user.outlet.id,
-              code: user.outlet.code,
-              name: user.outlet.name,
-              brand: user.outlet.brand,
-              district: user.outlet.district,
-          }
-        : null,
     depots: user.depots.map(({ depot }) => ({
         id: depot.id,
         code: depot.code,

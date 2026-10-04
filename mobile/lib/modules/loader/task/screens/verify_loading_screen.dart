@@ -2,32 +2,23 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_style.dart';
+import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/inner_section_header.dart';
-import '../widgets/loading_item_card.dart';
-import '../widgets/task_card.dart';
+import '../../../../models/loading_summary.dart';
+import '../../../../models/loading_task.dart';
+import '../widgets/brand_style.dart';
 import 'task_details_screen.dart';
 import 'task_screens.dart';
 
+/// The "Loading Completed" screen: shown right after a load is completed, with
+/// the summary the server returned.
 class VerifyLoadingScreen extends StatefulWidget {
-  final PendingTaskItem? task;
-  final int? totalItems;
-  final int? loadedItems;
-  final int? remainingItems;
-  final List<OutletOrder>? outlets;
-  final String startedAt;
-  final String completedAt;
-  final String loadingTime;
+  final LoadingTaskSummary? summary;
 
   const VerifyLoadingScreen({
     super.key,
-    this.task,
-    this.totalItems,
-    this.loadedItems,
-    this.remainingItems,
-    this.outlets,
-    this.startedAt = '06:20 AM',
-    this.completedAt = '08:35 AM',
-    this.loadingTime = '02h 15m',
+    this.summary,
   });
 
   @override
@@ -35,71 +26,6 @@ class VerifyLoadingScreen extends StatefulWidget {
 }
 
 class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
-  late final PendingTaskItem _task;
-  late final List<OutletOrder> _outlets;
-  late final int _totalItems;
-  late final int _loadedItems;
-  late final int _remainingItems;
-
-  @override
-  void initState() {
-    super.initState();
-    _task = widget.task ??
-        const PendingTaskItem(
-          routeId: 'R-005',
-          category: TaskCategory.fresh,
-          priority: TaskPriority.high,
-          vehicle: 'V-012',
-          departure: '06:15 AM',
-          outlets: '4 Outlets',
-          items: '46 Items',
-        );
-
-    _outlets = widget.outlets ??
-        [
-          OutletOrder(
-            index: 1,
-            storeName: 'Retail Store #1023',
-            orderId: 'ORD-1023',
-            items: List.generate(
-              16,
-              (i) => OrderItem(code: 'ITM-10$i', name: 'Item $i', qtyToLoad: 1, loadedQty: 1),
-            ),
-          ),
-          OutletOrder(
-            index: 2,
-            storeName: 'Retail Store #1024',
-            orderId: 'ORD-1024',
-            items: List.generate(
-              14,
-              (i) => OrderItem(code: 'ITM-20$i', name: 'Item $i', qtyToLoad: 1, loadedQty: 1),
-            ),
-          ),
-          OutletOrder(
-            index: 3,
-            storeName: 'Retail Store #1025',
-            orderId: 'ORD-1025',
-            items: List.generate(
-              8,
-              (i) => OrderItem(code: 'ITM-30$i', name: 'Item $i', qtyToLoad: 1, loadedQty: 1),
-            ),
-          ),
-          OutletOrder(
-            index: 4,
-            storeName: 'Retail Store #1026',
-            orderId: 'ORD-1026',
-            items: List.generate(
-              8,
-              (i) => OrderItem(code: 'ITM-40$i', name: 'Item $i', qtyToLoad: 1, loadedQty: 1),
-            ),
-          ),
-        ];
-
-    _totalItems = widget.totalItems ?? _outlets.fold(0, (sum, o) => sum + o.totalItemsToLoad);
-    _loadedItems = widget.loadedItems ?? _outlets.fold(0, (sum, o) => sum + o.totalItemsLoaded);
-    _remainingItems = widget.remainingItems ?? (_totalItems - _loadedItems);
-  }
-
   void _onPickAnotherTask() {
     Navigator.pushAndRemoveUntil(
       context,
@@ -108,17 +34,13 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
     );
   }
 
-  void _onViewTaskDetails() {
+  void _onViewTaskDetails(LoadingTaskSummary summary) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => TaskDetailsScreen(
-          task: _task,
-          outlets: _outlets,
-          totalItems: _totalItems,
-          loadedItems: _loadedItems,
-          remainingItems: _remainingItems,
-          startedAt: widget.startedAt,
+          tripId: summary.task.tripId,
+          summary: summary,
         ),
       ),
     );
@@ -126,126 +48,142 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final summary = widget.summary;
+
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
       appBar: InnerSectionHeader(
         title: 'Loading Completed',
         onBack: () => Navigator.pop(context),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. Success Hero Card
-            _buildSuccessHeroCard(),
+      body: summary == null
+          ? AppErrorState(
+              icon: Icons.assignment_late_outlined,
+              color: AppColors.pending,
+              background: AppColors.pendingLight,
+              title: 'Nothing to show',
+              message: 'Complete a loading task to see its summary here.',
+              actionLabel: 'Back to Tasks',
+              onAction: _onPickAnotherTask,
+            )
+          : _buildBody(summary),
+    );
+  }
 
-            const SizedBox(height: 18),
+  Widget _buildBody(LoadingTaskSummary summary) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Success Hero Card
+          _buildSuccessHeroCard(summary),
 
-            // 2. Loading Summary Section
-            _buildLoadingSummarySection(),
+          const SizedBox(height: 18),
 
-            const SizedBox(height: 18),
+          // 2. Loading Summary Section
+          _buildLoadingSummarySection(summary),
 
-            // 3. Outlet Summary Section
-            _buildOutletSummarySection(),
+          const SizedBox(height: 18),
 
-            const SizedBox(height: 20),
+          // 3. Outlet Summary Section
+          _buildOutletSummarySection(summary),
 
-            // 4. Action Buttons (View Task Details & Pick Another Task in same row)
-            Row(
-              children: [
-                // View Task Details (Outlined Button)
-                Expanded(
-                  child: SizedBox(
-                    height: AppSpacing.buttonHeight,
-                    child: OutlinedButton(
-                      onPressed: _onViewTaskDetails,
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: AppColors.white,
-                        foregroundColor: AppColors.primaryText,
-                        side: const BorderSide(color: AppColors.border, width: 1.0),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+          const SizedBox(height: 20),
+
+          // 4. Action Buttons (View Task Details & Pick Another Task in same row)
+          Row(
+            children: [
+              // View Task Details (Outlined Button)
+              Expanded(
+                child: SizedBox(
+                  height: AppSpacing.buttonHeight,
+                  child: OutlinedButton(
+                    onPressed: () => _onViewTaskDetails(summary),
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: AppColors.white,
+                      foregroundColor: AppColors.primaryText,
+                      side: const BorderSide(color: AppColors.border, width: 1.0),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.description_outlined,
+                          size: 18,
+                          color: AppColors.primaryText,
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.description_outlined,
-                            size: 18,
-                            color: AppColors.primaryText,
-                          ),
-                          SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              'View Task Details',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primaryText,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                        SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'View Task Details',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primaryText,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
+              ),
 
-                const SizedBox(width: 12),
+              const SizedBox(width: 12),
 
-                // Pick Another Task (Deep Forest Green Button)
-                Expanded(
-                  child: SizedBox(
-                    height: AppSpacing.buttonHeight,
-                    child: ElevatedButton(
-                      onPressed: _onPickAnotherTask,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.deepForestGreen,
-                        foregroundColor: AppColors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+              // Pick Another Task (Deep Forest Green Button)
+              Expanded(
+                child: SizedBox(
+                  height: AppSpacing.buttonHeight,
+                  child: ElevatedButton(
+                    onPressed: _onPickAnotherTask,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.deepForestGreen,
+                      foregroundColor: AppColors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.add_circle_outline_rounded,
+                          size: 18,
+                          color: AppColors.white,
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.add_circle_outline_rounded,
-                            size: 18,
-                            color: AppColors.white,
-                          ),
-                          SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              'Pick Another Task',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.white,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                        SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'Pick Another Task',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.white,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
+          ),
 
-            const SizedBox(height: 20),
-          ],
-        ),
+          const SizedBox(height: 20),
+        ],
       ),
     );
   }
@@ -253,7 +191,11 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
   // -------------------------------------------------------------
   // 1. SUCCESS HERO CARD
   // -------------------------------------------------------------
-  Widget _buildSuccessHeroCard() {
+  Widget _buildSuccessHeroCard(LoadingTaskSummary summary) {
+    final task = summary.task;
+    final brand = task.brand;
+    final short = summary.departedShort;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 20.0),
@@ -285,23 +227,24 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
                 Container(
                   width: 76,
                   height: 76,
-                  decoration: const BoxDecoration(
-                    color: AppColors.successLight,
+                  decoration: BoxDecoration(
+                    color: short ? AppColors.pendingLight : AppColors.successLight,
                     shape: BoxShape.circle,
                   ),
                 ),
-                // Solid green circle with checkmark
+                // Solid circle with checkmark (amber when the load left short)
                 Container(
                   width: 58,
                   height: 58,
-                  decoration: const BoxDecoration(
-                    color: AppColors.success,
+                  decoration: BoxDecoration(
+                    color: short ? AppColors.pending : AppColors.success,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Color(0x3316A34A),
+                        color: (short ? AppColors.pending : AppColors.success)
+                            .withValues(alpha: 0.2),
                         blurRadius: 10,
-                        offset: Offset(0, 4),
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
@@ -367,8 +310,10 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
           const SizedBox(height: 8),
 
           // Headline
-          const Text(
-            'All items have been loaded successfully!',
+          Text(
+            short
+                ? 'Loaded with a shortfall'
+                : 'All items have been loaded successfully!',
             style: AppTextStyles.heading2,
             textAlign: TextAlign.center,
           ),
@@ -376,8 +321,10 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
           const SizedBox(height: 4),
 
           // Subtitle
-          const Text(
-            'You can now proceed to the next task.',
+          Text(
+            short
+                ? '${summary.progress.remainingItems} items were not loaded. The shortfall is on record for the dispatcher.'
+                : 'You can now proceed to the next task.',
             style: AppTextStyles.bodySmall,
             textAlign: TextAlign.center,
           ),
@@ -396,7 +343,7 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
                   valueWidget: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      _task.routeId,
+                      task.routeCode,
                       style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -420,7 +367,7 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
                         ),
                         const SizedBox(width: 2),
                         Text(
-                          _task.vehicle,
+                          task.vehicle.code,
                           style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ],
@@ -437,7 +384,7 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
                   valueWidget: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      widget.startedAt,
+                      DateFormatter.formatTime(summary.startedAt),
                       style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -452,7 +399,7 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
                   valueWidget: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      widget.completedAt,
+                      DateFormatter.formatTime(summary.completedAt),
                       style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -466,21 +413,23 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
                   label: 'Brand',
                   valueWidget: FittedBox(
                     fit: BoxFit.scaleDown,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _getBrandIcon(_task.category),
-                        const SizedBox(width: 2),
-                        Text(
-                          _task.category.name.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.bold,
-                            color: _getBrandColor(_task.category),
+                    child: brand == null
+                        ? const Text('--', style: AppTextStyles.labelLarge)
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(BrandStyle.icon(brand), size: 14, color: BrandStyle.color(brand)),
+                              const SizedBox(width: 2),
+                              Text(
+                                BrandStyle.label(brand),
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: BrandStyle.color(brand),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
                   ),
                 ),
               ),
@@ -494,7 +443,9 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
   // -------------------------------------------------------------
   // 2. LOADING SUMMARY SECTION
   // -------------------------------------------------------------
-  Widget _buildLoadingSummarySection() {
+  Widget _buildLoadingSummarySection(LoadingTaskSummary summary) {
+    final progress = summary.progress;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -531,7 +482,7 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
                     color: AppColors.deepForestGreen,
                   ),
                   label: 'Total Items',
-                  value: '$_totalItems',
+                  value: '${progress.totalItems}',
                   valueColor: AppColors.primaryText,
                 ),
               ),
@@ -544,7 +495,7 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
                     color: AppColors.success,
                   ),
                   label: 'Loaded Items',
-                  value: '$_loadedItems',
+                  value: '${progress.loadedItems}',
                   valueColor: AppColors.success,
                 ),
               ),
@@ -557,7 +508,7 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
                     color: AppColors.pending,
                   ),
                   label: 'Remaining Items',
-                  value: '$_remainingItems',
+                  value: '${progress.remainingItems}',
                   valueColor: AppColors.pending,
                 ),
               ),
@@ -570,7 +521,7 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
                     color: AppColors.deepForestGreen,
                   ),
                   label: 'Loading Time',
-                  value: widget.loadingTime,
+                  value: DateFormatter.formatDuration(summary.loadingSec),
                   valueColor: AppColors.primaryText,
                 ),
               ),
@@ -625,7 +576,9 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
   // -------------------------------------------------------------
   // 3. OUTLET SUMMARY SECTION
   // -------------------------------------------------------------
-  Widget _buildOutletSummarySection() {
+  Widget _buildOutletSummarySection(LoadingTaskSummary summary) {
+    final outlets = summary.outlets;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -704,10 +657,10 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
                 ),
 
                 // Table Rows
-                ..._outlets.asMap().entries.map((entry) {
+                ...outlets.asMap().entries.map((entry) {
                   final index = entry.key;
                   final outlet = entry.value;
-                  final isLast = index == _outlets.length - 1;
+                  final isLast = index == outlets.length - 1;
 
                   return Column(
                     children: [
@@ -730,7 +683,7 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
                                     ),
                                     alignment: Alignment.center,
                                     child: Text(
-                                      '${outlet.index}',
+                                      '${outlet.sequence}',
                                       style: AppTextStyles.buttonLight.copyWith(fontSize: 12),
                                     ),
                                   ),
@@ -740,15 +693,19 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          outlet.storeName,
+                                          outlet.outletName,
                                           style: AppTextStyles.labelMedium.copyWith(
                                             fontWeight: FontWeight.bold,
                                             color: AppColors.primaryText,
                                           ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                         Text(
-                                          'Order #${outlet.orderId}',
+                                          'Order #${outlet.orderReferencesLabel}',
                                           style: AppTextStyles.bodySmall,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ],
                                     ),
@@ -761,7 +718,7 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
                             Expanded(
                               flex: 2,
                               child: Text(
-                                '${outlet.totalItemsLoaded}',
+                                '${outlet.loadedItems}',
                                 textAlign: TextAlign.center,
                                 style: AppTextStyles.heading3,
                               ),
@@ -772,17 +729,7 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
                               flex: 2,
                               child: Align(
                                 alignment: Alignment.centerRight,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.successLight,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Text(
-                                    'Loaded',
-                                    style: AppTextStyles.statusSuccess,
-                                  ),
-                                ),
+                                child: _buildStatusBadge(outlet.status),
                               ),
                             ),
                           ],
@@ -800,15 +747,40 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
     );
   }
 
+  Widget _buildStatusBadge(StopStatus status) {
+    final bool isLoaded = status == StopStatus.loaded;
+    final bool isShort = status == StopStatus.short;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: isLoaded
+            ? AppColors.successLight
+            : (isShort ? AppColors.pendingLight : AppColors.mutedBackground),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        isLoaded ? 'Loaded' : (isShort ? 'Short' : 'Pending'),
+        style: isLoaded
+            ? AppTextStyles.statusSuccess
+            : (isShort ? AppTextStyles.statusPending : AppTextStyles.labelSmall),
+      ),
+    );
+  }
+
   Widget _buildMetaCol({
     required String label,
     required Widget valueWidget,
   }) {
     return Column(
       children: [
-        Text(
-          label,
-          style: AppTextStyles.labelSmall,
+        // five columns share the width: a longer label ("Completed At") shrinks instead of wrapping
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            style: AppTextStyles.labelSmall,
+          ),
         ),
         const SizedBox(height: 4),
         valueWidget,
@@ -822,39 +794,5 @@ class _VerifyLoadingScreenState extends State<VerifyLoadingScreen> {
       height: 28,
       color: AppColors.divider,
     );
-  }
-
-  Widget _getBrandIcon(TaskCategory category) {
-    switch (category) {
-      case TaskCategory.fresh:
-        return const Icon(
-          Icons.ac_unit_rounded,
-          size: 14,
-          color: Color(0xFF1B6A56),
-        );
-      case TaskCategory.style:
-        return const Icon(
-          Icons.checkroom_outlined,
-          size: 14,
-          color: Color(0xFF6B46C1),
-        );
-      case TaskCategory.tech:
-        return const Icon(
-          Icons.desktop_windows_outlined,
-          size: 14,
-          color: Color(0xFF0284C7),
-        );
-    }
-  }
-
-  Color _getBrandColor(TaskCategory category) {
-    switch (category) {
-      case TaskCategory.fresh:
-        return const Color(0xFF1B6A56);
-      case TaskCategory.style:
-        return const Color(0xFF6B46C1);
-      case TaskCategory.tech:
-        return const Color(0xFF0284C7);
-    }
   }
 }

@@ -1,250 +1,427 @@
+import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_style.dart';
+import '../../../../core/widgets/app_error_state.dart';
+import '../../../../core/widgets/app_notice.dart';
 import '../../../../core/widgets/inner_section_header.dart';
+import '../../../../models/loading_summary.dart';
+import '../../../../models/loading_task.dart';
+import '../../../../providers/loader_provider.dart';
 import '../../report_issues/screens/report_issue_screen.dart';
+import '../widgets/brand_style.dart';
+import '../widgets/loader_feedback.dart';
 import '../widgets/loading_item_card.dart';
-import '../widgets/task_card.dart';
 import '../widgets/verification_summary.dart';
 import 'verify_loading_screen.dart';
 
 typedef VerifyItemsScreen = StartLoadingScreen;
 
+/// Loads the task that [LoaderProvider.activeTask] holds. The Tasks (or Home)
+/// screen claims the task first, so this screen is only ever opened for a task
+/// the loader holds.
 class StartLoadingScreen extends StatefulWidget {
-  final PendingTaskItem? task;
-
-  const StartLoadingScreen({
-    super.key,
-    this.task,
-  });
+  const StartLoadingScreen({super.key});
 
   @override
   State<StartLoadingScreen> createState() => _StartLoadingScreenState();
 }
 
 class _StartLoadingScreenState extends State<StartLoadingScreen> {
-  late final PendingTaskItem _task;
-  late final List<OutletOrder> _outlets;
+  // Outlets stay collapsed until tapped; what is open is purely screen state.
+  final Set<String> _expandedStops = {};
+  final Set<String> _showAllStops = {};
+
+  late final LoaderProvider _loader;
+  Timer? _heartbeat;
+  bool _conflictShown = false;
 
   @override
   void initState() {
     super.initState();
-    _task = widget.task ??
-        const PendingTaskItem(
-          routeId: 'R-005',
-          category: TaskCategory.fresh,
-          priority: TaskPriority.high,
-          vehicle: 'V-012',
-          departure: '06:15 AM',
-          outlets: '4 Outlets',
-          items: '46 Items',
+    _loader = context.read<LoaderProvider>();
+    _loader.addListener(_onLoaderChanged);
+
+    // While the screen is open, check in a few times per lock timeout: it keeps
+    // the task ours and picks up changes the dispatcher made to the plan.
+    final ttlSec = _loader.activeTask?.task.lock?.ttlSec ?? 900;
+    _heartbeat = Timer.periodic(
+      Duration(seconds: math.max(ttlSec ~/ 3, 30)),
+      (_) => _loader.refreshActiveTask(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _heartbeat?.cancel();
+    _loader.removeListener(_onLoaderChanged);
+    // Whatever was tapped last is still saved once the screen is gone.
+    unawaited(_loader.flushPendingSaves());
+    super.dispose();
+  }
+
+  // Dialogs and messages are side effects, so they happen here rather than in build().
+  void _onLoaderChanged() {
+    if (!mounted) return;
+
+    if (_loader.takePlanChanged()) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text('The plan for this route changed. Quantities were refreshed.'),
+            ),
+          );
+      });
+    }
+
+    final conflict = _loader.taskConflict;
+    if (conflict != null && !_conflictShown) {
+      _conflictShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _leaveAfterConflict(conflict));
+    }
+  }
+
+  // The task is no longer ours (somebody took it over, it went on hold...):
+  // say so and go back to the list.
+  Future<void> _leaveAfterConflict(LoaderError conflict) async {
+    if (!mounted) return;
+    await showTaskUnavailableDialog(context, conflict);
+    if (!mounted) return;
+    _loader.clearTaskConflict();
+    Navigator.pop(context);
+  }
+
+  // A failed action: the loader is told why, and sent back if the task is gone.
+  Future<void> _handleActionError(LoaderError error) async {
+    if (error.code == 'PLAN_CHANGED') {
+      await _loader.reloadActiveTask();
+      if (mounted) {
+        showLoaderSnackBar(
+          context,
+          'The plan for this route changed. Check the quantities and try again.',
         );
+      }
+      return;
+    }
 
-    // All outlets collapsed by default
-    _outlets = [
-      OutletOrder(
-        index: 1,
-        storeName: 'Retail Store #1023',
-        orderId: 'ORD-1023',
-        isExpanded: false,
-        items: [
-          OrderItem(code: 'ITM-1001', name: 'Fresh Bananas', qtyToLoad: 25),
-          OrderItem(code: 'ITM-1002', name: 'Whole Milk 1L', qtyToLoad: 12),
-          OrderItem(code: 'ITM-1003', name: 'Brown Bread', qtyToLoad: 20),
-          OrderItem(code: 'ITM-1004', name: 'Large Eggs (12)', qtyToLoad: 10),
-          OrderItem(code: 'ITM-1005', name: 'Apples Red 1kg', qtyToLoad: 15),
-          OrderItem(code: 'ITM-1006', name: 'Yogurt Strawberry 500g', qtyToLoad: 8),
-          OrderItem(code: 'ITM-1007', name: 'Butter 200g', qtyToLoad: 6),
-          OrderItem(code: 'ITM-1008', name: 'Cheddar Cheese 200g', qtyToLoad: 10),
-          OrderItem(code: 'ITM-1009', name: 'Orange Juice 1L', qtyToLoad: 8),
-          OrderItem(code: 'ITM-1010', name: 'Chicken Breast 500g', qtyToLoad: 14),
-          OrderItem(code: 'ITM-1011', name: 'Greek Yogurt 400g', qtyToLoad: 6),
-          OrderItem(code: 'ITM-1012', name: 'Tomatoes 1kg', qtyToLoad: 12),
-          OrderItem(code: 'ITM-1013', name: 'Spinach Bag 250g', qtyToLoad: 5),
-          OrderItem(code: 'ITM-1014', name: 'White Bread', qtyToLoad: 10),
-          OrderItem(code: 'ITM-1015', name: 'Carrots 1kg', qtyToLoad: 8),
-          OrderItem(code: 'ITM-1016', name: 'Salmon Fillet 400g', qtyToLoad: 7),
-        ],
-      ),
-      OutletOrder(
-        index: 2,
-        storeName: 'Retail Store #1024',
-        orderId: 'ORD-1024',
-        isExpanded: false,
-        items: [
-          OrderItem(code: 'ITM-2001', name: 'Organic Bananas', qtyToLoad: 14),
-          OrderItem(code: 'ITM-2002', name: 'Skim Milk 1L', qtyToLoad: 10),
-          OrderItem(code: 'ITM-2003', name: 'Sourdough Bread', qtyToLoad: 8),
-        ],
-      ),
-      OutletOrder(
-        index: 3,
-        storeName: 'Retail Store #1025',
-        orderId: 'ORD-1025',
-        isExpanded: false,
-        items: [
-          OrderItem(code: 'ITM-3001', name: 'Potatoes 2kg', qtyToLoad: 10),
-          OrderItem(code: 'ITM-3002', name: 'Onions 1kg', qtyToLoad: 8),
-        ],
-      ),
-      OutletOrder(
-        index: 4,
-        storeName: 'Retail Store #1026',
-        orderId: 'ORD-1026',
-        isExpanded: false,
-        items: [
-          OrderItem(code: 'ITM-4001', name: 'Green Apples 1kg', qtyToLoad: 12),
-          OrderItem(code: 'ITM-4002', name: 'Cereal 500g', qtyToLoad: 6),
-        ],
-      ),
-    ];
+    await showLoaderError(context, error);
+    if (error.isTaskUnavailable && mounted) Navigator.pop(context);
   }
 
-  int get _totalItems {
-    return _outlets.fold(0, (sum, o) => sum + o.totalItemsToLoad);
-  }
-
-  int get _loadedItems {
-    return _outlets.fold(0, (sum, o) => sum + o.totalItemsLoaded);
-  }
-
-  int get _remainingItems {
-    return _totalItems - _loadedItems;
-  }
-
-  int get _progressPercent {
-    return _totalItems > 0 ? ((_loadedItems / _totalItems) * 100).toInt() : 0;
-  }
-
-  void _onQtyChanged(OrderItem item, int newQty) {
-    setState(() {
-      item.loadedQty = newQty;
-    });
-  }
-
-  void _onPauseLoading() {
-    showDialog(
+  Future<void> _onPauseLoading() async {
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Pause Loading Session'),
         content: const Text('Do you want to pause this loading session? Progress will be saved.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.deepForestGreen,
             ),
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Loading session paused.')),
-              );
-            },
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Pause & Exit', style: TextStyle(color: AppColors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final paused = await _loader.pauseTask();
+    if (!mounted) return;
+
+    final error = _loader.actionError;
+    if (!paused) {
+      if (error != null) await _handleActionError(error);
+      return;
+    }
+
+    final messenger = ScaffoldMessenger.of(context);
+    Navigator.pop(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Loading session paused.')),
+    );
+  }
+
+  Future<void> _onReportShortfall() async {
+    final detail = _loader.activeTask;
+    if (detail == null) return;
+
+    // The report screen answers true when the task is out of the loader's hands.
+    final taskGone = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReportLoadingIssueScreen(shortfallTask: detail),
+      ),
+    );
+    if (taskGone == true && mounted) Navigator.pop(context);
+  }
+
+  // Review first (it also saves pending taps), then ask, then complete.
+  Future<void> _onReviewAndComplete() async {
+    final review = await _loader.reviewTask();
+    if (!mounted) return;
+    if (review == null) {
+      final error = _loader.actionError;
+      if (error != null) await _handleActionError(error);
+      return;
+    }
+
+    if (!review.completion.canComplete) {
+      await showTaskUnavailableDialog(
+        context,
+        LoaderError(
+          message: 'Finish loading before you complete this route.',
+          statusCode: 422,
+          code: 'COMPLETION_BLOCKED',
+          details: {
+            'blockers': [
+              for (final b in review.completion.blockers)
+                {'code': b.code, 'message': b.message},
+            ],
+          },
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await _confirmComplete(review);
+    if (confirmed != true || !mounted) return;
+
+    final summary = await _loader.completeTask(planRevision: review.planRevision);
+    if (!mounted) return;
+    if (summary == null) {
+      final error = _loader.actionError;
+      if (error != null) await _handleActionError(error);
+      return;
+    }
+
+    // The finished screen replaces this one: there is nothing left to do here.
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => VerifyLoadingScreen(summary: summary)),
+    );
+  }
+
+  Future<bool?> _confirmComplete(LoadingTaskSummary review) {
+    final progress = review.progress;
+    final routeCode = review.task.routeCode;
+    final message = review.completion.willDepartShort
+        ? '${progress.loadedItems} of ${progress.totalItems} items are loaded on $routeCode. '
+            'The ${progress.remainingItems} items reported short will not be on the vehicle. '
+            'Mark this route as loaded?'
+        : 'All ${progress.totalItems} items are loaded on $routeCode. '
+            'Mark it as loaded and ready for the driver?';
+
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Complete Loading'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.deepForestGreen,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Complete', style: TextStyle(color: AppColors.white)),
           ),
         ],
       ),
     );
   }
 
-  void _onReportShortfall() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ReportLoadingIssueScreen(
-          task: _task,
-          outlets: _outlets,
-        ),
-      ),
-    );
-  }
-
-  void _onReviewAndComplete() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => VerifyLoadingScreen(
-          task: _task,
-          totalItems: _totalItems,
-          loadedItems: _loadedItems,
-          remainingItems: _remainingItems,
-          outlets: _outlets,
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final loader = context.watch<LoaderProvider>();
+    final detail = loader.activeTask;
+
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
       appBar: InnerSectionHeader(
         title: 'Start Loading',
         onBack: () => Navigator.pop(context),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. Top Route Metadata Card
-            _buildRouteInfoCard(),
+      body: detail == null
+          ? AppErrorState(
+              icon: Icons.assignment_late_outlined,
+              color: AppColors.pending,
+              background: AppColors.pendingLight,
+              title: 'No task open',
+              message: 'Open a task from the Tasks list to start loading.',
+              actionLabel: 'Back to Tasks',
+              onAction: () => Navigator.pop(context),
+            )
+          : _buildBody(loader, detail),
+    );
+  }
 
-            const SizedBox(height: 14),
+  Widget _buildBody(LoaderProvider loader, LoadingTaskDetail detail) {
+    final task = detail.task;
+    final progress = detail.progress;
 
-            // 2. Summary Stats Card (Above loading items)
-            VerificationSummaryCard(
-              totalItems: _totalItems,
-              loadedItems: _loadedItems,
-              remainingItems: _remainingItems,
-              progressPercent: _progressPercent,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Top Route Metadata Card
+          _buildRouteInfoCard(task),
+
+          const SizedBox(height: 14),
+
+          // Anything the loader has to know before loading on
+          for (final violation in task.violations) ...[
+            AppNotice(message: violation.message),
+            const SizedBox(height: 10),
+          ],
+          if (loader.saveError != null) ...[
+            AppNotice(
+              message: "Changes not saved. ${loader.saveError}",
+              actionLabel: 'Retry',
+              onAction: loader.retrySaves,
             ),
+            const SizedBox(height: 10),
+          ],
 
+          // 2. Summary Stats Card (Above loading items)
+          VerificationSummaryCard(
+            totalItems: progress.totalItems,
+            loadedItems: progress.loadedItems,
+            remainingItems: progress.remainingItems,
+            progressPercent: progress.percent,
+          ),
+
+          const SizedBox(height: 14),
+
+          if (detail.removedLines.isNotEmpty) ...[
+            _buildRemovedLinesCard(loader, detail),
             const SizedBox(height: 14),
+          ],
 
-            // 3. Outlets / Orders Accordion List (Default collapsed)
-            ..._outlets.map(
-              (outlet) => LoadingItemCard(
-                outlet: outlet,
-                onToggleExpand: () {
-                  setState(() {
-                    outlet.isExpanded = !outlet.isExpanded;
-                  });
-                },
-                onToggleShowAll: () {
-                  setState(() {
-                    outlet.showAllItems = !outlet.showAllItems;
-                  });
-                },
-                onQtyChanged: _onQtyChanged,
+          // 3. Outlets / Orders Accordion List (Default collapsed)
+          if (detail.stops.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text(
+                  'There is nothing to load on this route.',
+                  style: AppTextStyles.bodySmall,
+                ),
+              ),
+            )
+          else
+            ...detail.stops.map(
+              (stop) => LoadingItemCard(
+                stop: stop,
+                isExpanded: _expandedStops.contains(stop.stopId),
+                showAllItems: _showAllStops.contains(stop.stopId),
+                onToggleExpand: () => setState(() {
+                  if (!_expandedStops.remove(stop.stopId)) {
+                    _expandedStops.add(stop.stopId);
+                  }
+                }),
+                onToggleShowAll: () => setState(() {
+                  if (!_showAllStops.remove(stop.stopId)) {
+                    _showAllStops.add(stop.stopId);
+                  }
+                }),
+                onQtyChanged: loader.setLoadedQty,
               ),
             ),
 
-            const SizedBox(height: 16),
+          const SizedBox(height: 16),
 
-            // 4. Action Buttons (Pause Loading, Review & Complete, Report Shortfall) - Below order cards
-            VerificationBottomBar(
-              totalItems: _totalItems,
-              loadedItems: _loadedItems,
-              onPauseLoading: _onPauseLoading,
-              onReviewAndComplete: _onReviewAndComplete,
-              onReportShortfall: _onReportShortfall,
-              padding: EdgeInsets.zero,
-            ),
+          // 4. Action Buttons (Pause Loading, Review & Complete, Report Shortfall) - Below order cards
+          VerificationBottomBar(
+            totalItems: progress.totalItems,
+            loadedItems: progress.loadedItems,
+            isBusy: loader.isActionRunning,
+            onPauseLoading: _onPauseLoading,
+            onReviewAndComplete: _onReviewAndComplete,
+            onReportShortfall: _onReportShortfall,
+            padding: EdgeInsets.zero,
+          ),
 
-            const SizedBox(height: 24),
-          ],
-        ),
+          const SizedBox(height: 24),
+        ],
       ),
     );
   }
 
-  Widget _buildRouteInfoCard() {
+  // Units loaded for an order that left the route: they must come off the vehicle.
+  Widget _buildRemovedLinesCard(LoaderProvider loader, LoadingTaskDetail detail) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.cardPadding),
+      decoration: BoxDecoration(
+        color: AppColors.pendingLight,
+        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+        border: Border.all(color: AppColors.pending.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, size: 18, color: AppColors.pending),
+              SizedBox(width: 8),
+              Text('Take these off the vehicle', style: AppTextStyles.labelLarge),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'They belong to orders the dispatcher removed from this route.',
+            style: AppTextStyles.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          for (final removed in detail.removedLines)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${removed.loadedQty} x ${removed.itemName}'
+                      '${removed.orderReference != null ? ' (${removed.orderReference})' : ''}',
+                      style: AppTextStyles.bodyMedium,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => loader.unloadRemovedLine(removed),
+                    child: const Text(
+                      'Unloaded',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.deepForestGreen,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRouteInfoCard(LoadingTask task) {
+    final isHigh = task.priority == TaskPriority.high;
+    final brand = task.brand;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 16.0),
       decoration: BoxDecoration(
@@ -269,7 +446,7 @@ class _StartLoadingScreenState extends State<StartLoadingScreen> {
             child: _buildMetaCol(
               label: 'Route',
               valueWidget: Text(
-                _task.routeId,
+                task.routeCode,
                 style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.bold),
               ),
             ),
@@ -280,20 +457,24 @@ class _StartLoadingScreenState extends State<StartLoadingScreen> {
           Expanded(
             child: _buildMetaCol(
               label: 'Vehicle',
-              valueWidget: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.local_shipping_outlined,
-                    size: 15,
-                    color: AppColors.primaryText,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    _task.vehicle,
-                    style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                ],
+              // Codes like V-REEFER-1 are long: shrink a little rather than cut them off
+              valueWidget: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.local_shipping_outlined,
+                      size: 15,
+                      color: AppColors.primaryText,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      task.vehicle.code,
+                      style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -309,15 +490,11 @@ class _StartLoadingScreenState extends State<StartLoadingScreen> {
                   Icon(
                     Icons.warning_amber_rounded,
                     size: 15,
-                    color: _task.priority == TaskPriority.high
-                        ? const Color(0xFFD97706)
-                        : AppColors.primaryText,
+                    color: isHigh ? const Color(0xFFD97706) : AppColors.primaryText,
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    _task.priority == TaskPriority.high
-                        ? 'High'
-                        : (_task.priority == TaskPriority.normal ? 'Normal' : 'Low'),
+                    isHigh ? 'High' : 'Normal',
                     style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.bold),
                   ),
                 ],
@@ -330,21 +507,23 @@ class _StartLoadingScreenState extends State<StartLoadingScreen> {
           Expanded(
             child: _buildMetaCol(
               label: 'Brand',
-              valueWidget: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _getBrandIcon(_task.category),
-                  const SizedBox(width: 4),
-                  Text(
-                    _task.category.name.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: _getBrandColor(_task.category),
+              valueWidget: brand == null
+                  ? const Text('--', style: AppTextStyles.labelLarge)
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(BrandStyle.icon(brand), size: 14, color: BrandStyle.color(brand)),
+                        const SizedBox(width: 4),
+                        Text(
+                          BrandStyle.label(brand),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: BrandStyle.color(brand),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
             ),
           ),
         ],
@@ -374,39 +553,5 @@ class _StartLoadingScreenState extends State<StartLoadingScreen> {
       height: 28,
       color: AppColors.divider,
     );
-  }
-
-  Widget _getBrandIcon(TaskCategory category) {
-    switch (category) {
-      case TaskCategory.fresh:
-        return const Icon(
-          Icons.ac_unit_rounded,
-          size: 14,
-          color: Color(0xFF1B6A56),
-        );
-      case TaskCategory.style:
-        return const Icon(
-          Icons.checkroom_outlined,
-          size: 14,
-          color: Color(0xFF6B46C1),
-        );
-      case TaskCategory.tech:
-        return const Icon(
-          Icons.desktop_windows_outlined,
-          size: 14,
-          color: Color(0xFF0284C7),
-        );
-    }
-  }
-
-  Color _getBrandColor(TaskCategory category) {
-    switch (category) {
-      case TaskCategory.fresh:
-        return const Color(0xFF1B6A56);
-      case TaskCategory.style:
-        return const Color(0xFF6B46C1);
-      case TaskCategory.tech:
-        return const Color(0xFF0284C7);
-    }
   }
 }

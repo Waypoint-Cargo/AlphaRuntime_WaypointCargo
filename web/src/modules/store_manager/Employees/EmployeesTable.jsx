@@ -5,7 +5,7 @@ import { roleLabel } from "./employeeUtils";
 
 const COLUMNS = {
   pending: ["Name", "Role", "Phone", "Registered", "Status", "Actions"],
-  employees: ["Name", "Employee No.", "Role", "Outlet", "Phone", "Status", "Actions"],
+  employees: ["Name", "Employee No.", "Role", "Phone", "Status", "Actions"],
 };
 
 function Person({ employee, isSelf }) {
@@ -72,13 +72,6 @@ export default function EmployeesTable({
               )}
 
               <div className="cell" role="cell">{roleLabel(employee.role)}</div>
-
-              {mode === "employees" && (
-                <div className="cell" role="cell">
-                  <span>{employee.outlet?.name ?? "—"}</span>
-                  {employee.outlet && <small>{[employee.outlet.code, employee.outlet.district].filter(Boolean).join(" · ")}</small>}
-                </div>
-              )}
 
               <div className="cell" role="cell">{employee.phone || "—"}</div>
 

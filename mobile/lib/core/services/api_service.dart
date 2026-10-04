@@ -33,6 +33,23 @@ class ApiException implements Exception {
     return map;
   }
 
+  /// Machine-readable error code the API puts in `details.code`
+  /// (for example `TASK_LOCKED`), or null when it sends none.
+  String? get code {
+    final d = details;
+    if (d is Map && d['code'] != null) return d['code'].toString();
+    return null;
+  }
+
+  /// `details` as a map; empty when the API sent none (or a list of field errors).
+  Map<String, dynamic> get detailsMap {
+    final d = details;
+    return d is Map ? Map<String, dynamic>.from(d) : const <String, dynamic>{};
+  }
+
+  /// True when the request never got an answer: no connection, DNS failure or timeout.
+  bool get isNetworkError => statusCode == 0 || statusCode == 408;
+
   @override
   String toString() => message;
 }
@@ -43,8 +60,17 @@ class ApiService {
   final String _baseUrl;
   String? _authToken;
 
-  ApiService({http.Client? client, String? baseUrl, String? authToken})
-      : _client = client ?? http.Client(),
+  /// Called once when an authenticated request is answered with 401 (the
+  /// access token expired). It returns a fresh access token, and the request is
+  /// then repeated once; or null when the session cannot be renewed.
+  Future<String?> Function()? onUnauthorized;
+
+  ApiService({
+    http.Client? client,
+    String? baseUrl,
+    String? authToken,
+    this.onUnauthorized,
+  })  : _client = client ?? http.Client(),
         _baseUrl = baseUrl ?? ApiConstants.baseUrl,
         _authToken = authToken;
 
@@ -71,50 +97,77 @@ class ApiService {
     String endpoint, {
     Map<String, dynamic>? body,
     Map<String, String>? headers,
-  }) async {
-    final uri = _buildUri(endpoint);
-    final requestHeaders = {..._defaultHeaders, ...?headers};
+  }) {
+    return _send(
+      endpoint,
+      (uri, requestHeaders) => _client.post(
+        uri,
+        headers: requestHeaders,
+        body: body != null ? jsonEncode(body) : null,
+      ),
+      headers: headers,
+    );
+  }
 
-    try {
-      final response = await _client
-          .post(
-            uri,
-            headers: requestHeaders,
-            body: body != null ? jsonEncode(body) : null,
-          )
-          .timeout(ApiConstants.timeoutDuration);
-
-      return _handleResponse(response);
-    } on SocketException {
-      throw ApiException(
-        message: 'Unable to connect to server. Please check your network connection.',
-        statusCode: 0,
-      );
-    } on TimeoutException {
-      throw ApiException(
-        message: 'Connection timed out. Please try again later.',
-        statusCode: 408,
-      );
-    } on http.ClientException catch (e) {
-      throw ApiException(
-        message: 'Network error: ${e.message}',
-        statusCode: 0,
-      );
-    }
+  /// Sends a PATCH request.
+  Future<Map<String, dynamic>> patch(
+    String endpoint, {
+    Map<String, dynamic>? body,
+    Map<String, String>? headers,
+  }) {
+    return _send(
+      endpoint,
+      (uri, requestHeaders) => _client.patch(
+        uri,
+        headers: requestHeaders,
+        body: body != null ? jsonEncode(body) : null,
+      ),
+      headers: headers,
+    );
   }
 
   /// Sends a GET request.
   Future<Map<String, dynamic>> get(
     String endpoint, {
     Map<String, String>? headers,
+  }) {
+    return _send(
+      endpoint,
+      (uri, requestHeaders) => _client.get(uri, headers: requestHeaders),
+      headers: headers,
+    );
+  }
+
+  /// Sends a request and turns every failure into an [ApiException].
+  Future<Map<String, dynamic>> _send(
+    String endpoint,
+    Future<http.Response> Function(Uri uri, Map<String, String> headers) request, {
+    Map<String, String>? headers,
   }) async {
     final uri = _buildUri(endpoint);
-    final requestHeaders = {..._defaultHeaders, ...?headers};
+
+    // Headers are rebuilt on every attempt so a renewed token is picked up.
+    Future<http.Response> attempt() => request(
+          uri,
+          {..._defaultHeaders, ...?headers},
+        ).timeout(ApiConstants.timeoutDuration);
 
     try {
-      final response = await _client
-          .get(uri, headers: requestHeaders)
-          .timeout(ApiConstants.timeoutDuration);
+      var response = await attempt();
+
+      // The access token lasts minutes, not a whole shift: renew it once and
+      // repeat the request. Auth endpoints are excluded (a 401 on login means
+      // wrong credentials, and the renewal call itself must not recurse).
+      if (response.statusCode == 401 &&
+          _authToken != null &&
+          onUnauthorized != null &&
+          !endpoint.startsWith('/auth/')) {
+        final renewedToken = await onUnauthorized!();
+        if (renewedToken != null) {
+          if (renewedToken != _authToken) setAuthToken(renewedToken);
+          response = await attempt();
+        }
+      }
 
       return _handleResponse(response);
     } on SocketException {

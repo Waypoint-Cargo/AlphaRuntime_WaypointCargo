@@ -9,14 +9,12 @@ import { Role } from "../../generated/prisma/index.js";
 import {
     listEmployeesSchema,
     listPendingEmployeesSchema,
-    listOutletsSchema,
     approveEmployeeSchema,
     deleteEmployeeSchema,
 } from "./employees.validator.js";
 import {
     listEmployeesController,
     listPendingEmployeesController,
-    listOutletsController,
     approveEmployeeController,
     deleteEmployeeController,
 } from "./employees.controller.js";
@@ -50,20 +48,6 @@ const listPendingLimiter = createRateLimiter({
     fallbackBehavior: "allow",
     onRedisError: (error) =>
         logger.warn("Employees-pending rate limiter Redis error — failing open", {
-            message: error.message,
-        }),
-});
-
-const listOutletsLimiter = createRateLimiter({
-    redis,
-    limit: 60,
-    windowMs: 60_000,
-    prefix: "employees-outlets",
-    errorMessage: "Too many requests. Try again later.",
-    keyGenerator: (req) => req.user?.id ?? req.ip,
-    fallbackBehavior: "allow",
-    onRedisError: (error) =>
-        logger.warn("Employees-outlets rate limiter Redis error — failing open", {
             message: error.message,
         }),
 });
@@ -114,16 +98,7 @@ employeesRouter.get(
     catchAsync(listPendingEmployeesController),
 );
 
-// GET /employees/outlets — outlets available to assign on approval (from outlets.csv)
-employeesRouter.get(
-    "/outlets",
-    ...storeManagerOnly,
-    listOutletsLimiter,
-    validate(listOutletsSchema),
-    catchAsync(listOutletsController),
-);
-
-// POST /employees/:userId/approve — assign employee number + outlet, email the employee
+// POST /employees/:userId/approve — assign employee number, email the employee
 employeesRouter.post(
     "/:userId/approve",
     ...storeManagerOnly,

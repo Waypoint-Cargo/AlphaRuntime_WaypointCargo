@@ -54,7 +54,7 @@ const detailRow = (label, value) => `
 `;
 
 // Account approval notice — sent once a Store Manager approves a self sign-up.
-export const accountApprovedTemplate = ({ fullName, email, employeeNumber, role, outlet }) => ({
+export const accountApprovedTemplate = ({ fullName, email, employeeNumber, role }) => ({
     subject: "Your Waypoint Cargo account has been approved",
     html: `
         ${brandHeader("Account approved")}
@@ -65,8 +65,6 @@ export const accountApprovedTemplate = ({ fullName, email, employeeNumber, role,
         <table style="border-collapse:collapse;margin:8px 0 20px;">
             ${detailRow("Employee number", employeeNumber)}
             ${detailRow("Role", role)}
-            ${detailRow("Outlet", `${outlet.name} (${outlet.code})`)}
-            ${detailRow("District", outlet.district)}
         </table>
         <p style="font-size:14px;line-height:1.6;">
             To sign in, use the <strong>same password you created when you registered</strong> —
@@ -82,9 +80,7 @@ export const accountApprovedTemplate = ({ fullName, email, employeeNumber, role,
         `Hi ${fullName},\n\n` +
         `Good news — your Waypoint Cargo account has been approved. Here are your account details:\n\n` +
         `Employee number: ${employeeNumber}\n` +
-        `Role: ${role}\n` +
-        `Outlet: ${outlet.name} (${outlet.code})\n` +
-        `District: ${outlet.district}\n\n` +
+        `Role: ${role}\n\n` +
         `To sign in, use the same password you created when you registered. ` +
         `You can log in with either your employee number (${employeeNumber}) or your email address (${email}).`,
 });

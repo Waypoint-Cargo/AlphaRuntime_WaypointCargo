@@ -103,6 +103,25 @@ class LoginResponse {
   }
 }
 
+/// Response returned from the refresh endpoint: a new token pair.
+class RefreshResponse {
+  final String accessToken;
+  final String refreshToken;
+
+  RefreshResponse({
+    required this.accessToken,
+    required this.refreshToken,
+  });
+
+  factory RefreshResponse.fromJson(Map<String, dynamic> json) {
+    final data = json['data'] as Map<String, dynamic>?;
+    return RefreshResponse(
+      accessToken: data?['accessToken'] as String? ?? '',
+      refreshToken: data?['refreshToken'] as String? ?? '',
+    );
+  }
+}
+
 /// Authentication service for the mobile application.
 class AuthService {
   final ApiService _apiService;
@@ -135,6 +154,26 @@ class AuthService {
       ApiConstants.authLogout,
       body: {'refreshToken': refreshToken},
     );
+  }
+
+  /// Exchanges the refresh token for a new access + refresh token pair.
+  ///
+  /// Sends the refresh token in the body to `POST /api/auth/refresh` (the
+  /// mobile flow; browsers use a cookie instead). Each refresh token works once.
+  /// Throws [ApiException] when the server refuses it (revoked or expired).
+  Future<RefreshResponse> refresh({required String refreshToken}) async {
+    final response = await _apiService.post(
+      ApiConstants.authRefresh,
+      body: {'refreshToken': refreshToken},
+    );
+    final tokens = RefreshResponse.fromJson(response);
+    if (tokens.accessToken.isEmpty || tokens.refreshToken.isEmpty) {
+      throw ApiException(
+        message: 'The server sent an unexpected response.',
+        statusCode: 502,
+      );
+    }
+    return tokens;
   }
 
   /// Registers a new employee account (e.g. Loader or Driver).

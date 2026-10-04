@@ -14,9 +14,6 @@ const profileSelect = {
     lockedUntil: true,
     createdAt: true,
     updatedAt: true,
-    outlet: {
-        select: { id: true, code: true, name: true, brand: true, district: true },
-    },
     depots: {
         select: { depot: { select: { id: true, code: true, name: true } } },
     },
