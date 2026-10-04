@@ -233,11 +233,11 @@ export const createAllocationService = async ({ actor, input, meta = {} }) => {
 		let trip = await repo.findTrip(tx, vehicle.id, order.deliveryDate, input.tripNumber);
 		if (!trip) {
 			trip = await repo.createTrip(tx, {
-				code: await repo.nextTripCode(tx), planId: plan.id, vehicleId: vehicle.id, driverId: vehicle.defaultDriverId ?? null,
+				code: await repo.nextTripCode(tx), planId: plan.id, vehicleId: vehicle.id, driverId: null, // drivers pick their own task later (deliveries module)
 				deliveryDate: order.deliveryDate, tripNumber: input.tripNumber,
 			});
 		} else if (trip.status === "CANCELLED") {
-			trip = await repo.reviveTrip(tx, trip.id, { planId: plan.id, driverId: vehicle.defaultDriverId ?? null });
+			trip = await repo.reviveTrip(tx, trip.id, { planId: plan.id, driverId: null });
 		}
 
 		// Orders for the same outlet share one stop (unique per trip + outlet).

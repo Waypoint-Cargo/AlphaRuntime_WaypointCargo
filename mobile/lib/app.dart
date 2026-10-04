@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'core/theme/app_theme.dart';
 import 'modules/auth/screens/login_screen.dart';
 import 'providers/auth_provider.dart';
+import 'providers/driver_provider.dart';
 import 'providers/loader_provider.dart';
 import 'routes/app_routes.dart';
 import 'routes/route_guard.dart';
@@ -39,6 +40,15 @@ class _WaypointCargoAppState extends State<WaypointCargoApp> {
           update: (context, auth, loader) {
             loader!.bindUser(auth.currentUser?.id);
             return loader;
+          },
+        ),
+        // The driver Tasks page: same client and the same fresh start per user.
+        ChangeNotifierProxyProvider<AuthProvider, DriverProvider>(
+          create: (context) =>
+              DriverProvider(apiService: context.read<AuthProvider>().apiService),
+          update: (context, auth, driver) {
+            driver!.bindUser(auth.currentUser?.id);
+            return driver;
           },
         ),
       ],

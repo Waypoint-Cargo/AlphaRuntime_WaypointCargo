@@ -168,6 +168,28 @@ function bundleTrip(t) {
     })),
   };
 }
+const tripInclude = {
+  vehicle: true,
+  plan: { include: { depot: true } },
+  stops: {
+    orderBy: { sequence: "asc" },
+    include: {
+      outlet: true,
+      proof: true,
+      allocations: {
+        include: {
+          order: {
+            include: {
+              items: {
+                include: { loadingChecks: { include: { session: true } } },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+};
 async function trips(user, date) {
   return db.trip.findMany({
     where: {
@@ -176,29 +198,70 @@ async function trips(user, date) {
       plan: { status: { in: ["PUBLISHED", "IN_EXECUTION", "COMPLETED"] } },
     },
     orderBy: { tripNumber: "asc" },
-    include: {
-      vehicle: true,
-      plan: { include: { depot: true } },
-      stops: {
-        orderBy: { sequence: "asc" },
-        include: {
-          outlet: true,
-          proof: true,
-          allocations: {
-            include: {
-              order: {
-                include: {
-                  items: {
-                    include: { loadingChecks: { include: { session: true } } },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+    include: tripInclude,
   });
+}
+// Tasks a driver can pick: loaded, published trips nobody has taken yet.
+const availableWhere = (date) => ({
+  driverId: null,
+  deliveryDate: date,
+  status: "LOADED",
+  plan: { status: { in: ["PUBLISHED", "IN_EXECUTION"] } },
+});
+export async function getAvailable(user, q) {
+  const d = q.date ? day(q.date) : day(new Date().toISOString().slice(0, 10)),
+    ts = await db.trip.findMany({
+      where: availableWhere(d),
+      orderBy: [{ tripNumber: "asc" }, { code: "asc" }],
+      include: tripInclude,
+    });
+  return {
+    date: d.toISOString().slice(0, 10),
+    generatedAt: new Date(),
+    trips: ts.map(bundleTrip),
+  };
+}
+// A driver takes an available task. The conditional update makes sure only one driver wins.
+export async function selectTask(user, tripId) {
+  const t = await db.trip.findUnique({ where: { id: tripId } });
+  if (!t) throw new AppError("Trip not found", 404);
+  if (t.driverId === user.id) return { trip: await loadBundle(tripId) };
+  if (t.driverId) throw new AppError("Another driver has already taken this task.", 409, {
+      code: "TASK_TAKEN",
+    });
+  const active = await db.trip.findFirst({
+    where: { driverId: user.id, status: { in: ["LOADED", "IN_TRANSIT"] } },
+  });
+  if (active) throw new AppError(
+      "Finish your current task before selecting another one.",
+      409,
+      { code: "DRIVER_HAS_ACTIVE_TASK" },
+    );
+  await db.$transaction(async (tx) => {
+    const { count } = await tx.trip.updateMany({
+      where: { id: tripId, driverId: null, status: "LOADED" },
+      data: { driverId: user.id, version: { increment: 1 } },
+    });
+    if (!count) throw new AppError("This task is no longer available.", 409, {
+        code: "TASK_NOT_AVAILABLE",
+      });
+    await tx.auditLog.create({
+      data: {
+        actorId: user.id,
+        action: "TRIP_DRIVER_SELECTED",
+        entityType: "Trip",
+        entityId: tripId,
+        before: { driverId: null },
+        after: { driverId: user.id },
+      },
+    });
+  });
+  return { trip: await loadBundle(tripId) };
+}
+async function loadBundle(tripId) {
+  return bundleTrip(
+    await db.trip.findUnique({ where: { id: tripId }, include: tripInclude }),
+  );
 }
 export async function getToday(user, q) {
   const d = q.date ? day(q.date) : day(new Date().toISOString().slice(0, 10)),

@@ -11,6 +11,11 @@ export const dateSchema = z.object({
       .optional(),
   }),
 });
+export const selectSchema = z.object({
+  query: z.object({}).optional(),
+  params: z.object({ tripId: id }),
+  body: z.object({}).optional(),
+});
 export const departSchema = z.object({
   query: z.object({}).optional(),
   params: z.object({ tripId: id }),

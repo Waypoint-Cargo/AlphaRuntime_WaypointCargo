@@ -185,9 +185,7 @@ export const publishPlanService = async ({ actor, id, input = {}, meta = {} }) =
 		for (const loader of loaders) {
 			notifications.push({ userId: loader.id, type: "PLAN_PUBLISHED", severity: "INFO", title: `Plan published for ${date}`, body: `${trips.length} route(s) at ${plan.depot.name} are ready for loading.`, entityType: "DispatchPlan", entityId: plan.id, action: "START_LOADING" });
 		}
-		for (const trip of trips.filter((candidate) => candidate.driverId)) {
-			notifications.push({ userId: trip.driverId, type: "ROUTE_ASSIGNED", severity: "INFO", title: `Route ${trip.code} assigned`, body: `${trip.stops.length} stop(s) on ${date} with ${trip.vehicle.code}.`, entityType: "Trip", entityId: trip.id });
-		}
+		// Drivers are not assigned here: they pick an available task from their Tasks page.
 		const plannedOrders = trips.flatMap((trip) => trip.stops.flatMap((stop) => stop.allocations.map((allocation) => ({ order: allocation.order, outletId: stop.outlet.id, trip }))));
 		const managers = await findRecipientsTx(tx, { role: "STORE_MANAGER", outletIds: [...new Set([...plannedOrders.map((p) => p.outletId), ...unplanned.map((o) => o.outletId)])] });
 		for (const { order, outletId, trip } of plannedOrders) {
@@ -204,11 +202,10 @@ export const publishPlanService = async ({ actor, id, input = {}, meta = {} }) =
 
 		// 5. flip the plan and write the audit trail
 		const published = await updatePlanTx(tx, id, { status: "PUBLISHED", publishedAt: new Date(), publishedById: actor.id });
-		const withoutDriver = trips.filter((trip) => !trip.driverId).map((trip) => trip.code);
 		await createAuditLogTx(tx, {
 			actorId: actor.id, action: "PLAN_PUBLISHED", entityType: "DispatchPlan", entityId: id,
 			before: { status: plan.status },
-			after: { status: "PUBLISHED", trips: trips.map((trip) => trip.code), deferredOrders: unplanned.map((order) => order.reference), fuelEntries, notifications: notifications.length, tripsWithoutDriver: withoutDriver },
+			after: { status: "PUBLISHED", trips: trips.map((trip) => trip.code), deferredOrders: unplanned.map((order) => order.reference), fuelEntries, notifications: notifications.length },
 			...meta,
 		});
 
@@ -220,7 +217,7 @@ export const publishPlanService = async ({ actor, id, input = {}, meta = {} }) =
 				ordersDeferred: unplanned.length,
 				fuelEntries,
 				notificationsSent: notifications.length,
-				warnings: withoutDriver.length ? [{ code: "TRIPS_WITHOUT_DRIVER", message: `${withoutDriver.join(", ")} have no driver assigned yet.`, tripCodes: withoutDriver }] : [],
+				warnings: [],
 			},
 		};
 	}, TX_OPTIONS);

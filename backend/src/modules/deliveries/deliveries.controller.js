@@ -2,6 +2,12 @@ import { sendSuccess } from "../../utils/apiResponse.js";
 import * as s from "./deliveries.service.js";
 export const today = async (req, res) =>
   sendSuccess(res, { data: await s.getToday(req.user, req.query) });
+export const available = async (req, res) =>
+  sendSuccess(res, { data: await s.getAvailable(req.user, req.query) });
+export const select = async (req, res) =>
+  sendSuccess(res, {
+    data: await s.selectTask(req.user, req.params.tripId),
+  });
 export const summary = async (req, res) =>
   sendSuccess(res, { data: await s.getSummary(req.user, req.query) });
 export const depart = async (req, res) =>

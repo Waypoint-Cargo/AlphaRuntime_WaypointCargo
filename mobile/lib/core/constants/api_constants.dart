@@ -19,6 +19,12 @@ class ApiConstants {
   static const String authMe = '/auth/me';
   static const String authForgotPassword = '/auth/forgot-password';
 
+  // Driver endpoints (a driver task is identified by its trip id)
+  static const String deliveriesToday = '/deliveries/today';
+  static const String deliveriesAvailable = '/deliveries/available';
+  static String deliveryTaskSelect(String tripId) =>
+      '/deliveries/tasks/${Uri.encodeComponent(tripId)}/select';
+
   // Loader endpoints (a loading task is identified by its trip id)
   static const String loadingSummary = '/loading/summary';
   static const String loadingTasks = '/loading/tasks';
