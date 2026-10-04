@@ -11,9 +11,11 @@ import 'package:mobile/modules/loader/home/screens/loader_home_screen.dart';
 import 'package:mobile/modules/loader/report_issues/screens/issue_details_screen.dart';
 import 'package:mobile/modules/loader/task/screens/task_screens.dart';
 import 'package:mobile/providers/auth_provider.dart';
+import 'package:mobile/providers/driver_provider.dart';
 import 'package:mobile/providers/loader_provider.dart';
 import 'package:mobile/routes/app_routes.dart';
 import 'package:provider/provider.dart';
+import 'support/fake_driver_service.dart';
 
 void main() {
   testWidgets('WaypointCargoApp starts on LoginScreen and renders logo, form, and validation', (WidgetTester tester) async {
@@ -279,6 +281,9 @@ void main() {
         providers: [
           ChangeNotifierProvider<AuthProvider>.value(value: auth),
           ChangeNotifierProvider<LoaderProvider>.value(value: loader),
+          ChangeNotifierProvider<DriverProvider>(
+            create: (_) => DriverProvider(driverService: FakeDriverService()),
+          ),
         ],
         child: MaterialApp(
           theme: AppTheme.lightTheme,
@@ -289,8 +294,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Verify initially on Driver Overview
-    expect(find.text("Today's Overview"), findsOneWidget);
+    // Verify initially on the driver Task page
+    expect(find.text("Available Tasks"), findsOneWidget);
 
     // Tap 'Profile' tab in bottom navigation bar
     final profileTabFinder = find.text('Profile');
@@ -307,7 +312,7 @@ void main() {
     expect(find.byIcon(Icons.person_outline), findsOneWidget);
 
     // Verify ProfileScreen rendered
-    expect(find.text("Today's Overview"), findsNothing);
+    expect(find.text("Available Tasks"), findsNothing);
     expect(find.text('Account Details'), findsOneWidget);
     expect(find.text('Preferences & Support'), findsNothing);
     expect(find.text('Sign Out'), findsNothing);
@@ -316,7 +321,7 @@ void main() {
     await tester.tap(find.text('Home'));
     await tester.pumpAndSettle();
 
-    expect(find.text("Today's Overview"), findsOneWidget);
+    expect(find.text("Available Tasks"), findsOneWidget);
     expect(find.text('Account Details'), findsNothing);
   });
 
@@ -409,6 +414,9 @@ void main() {
         providers: [
           ChangeNotifierProvider<AuthProvider>.value(value: auth),
           ChangeNotifierProvider<LoaderProvider>.value(value: loader),
+          ChangeNotifierProvider<DriverProvider>(
+            create: (_) => DriverProvider(driverService: FakeDriverService()),
+          ),
         ],
         child: MaterialApp(
           theme: AppTheme.lightTheme,

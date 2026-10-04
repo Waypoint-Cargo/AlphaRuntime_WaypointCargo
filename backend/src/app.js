@@ -41,6 +41,9 @@ app.use(cookieParser());
 // 60-80% for JSON/text responses. Browsers handle decompression transparently.
 app.use(compression());
 
+// Image uploads arrive as base64 JSON (5 MB file ~ 6.7 MB of text); this parser must run before the global one.
+app.use("/api/files", express.json({ limit: "8mb" }));
+
 // Limit request body size to 10KB to prevent payload-based DoS attacks.
 // urlencoded with extended:true supports rich objects and arrays via qs library.
 app.use(express.json({ limit: "10kb" }));

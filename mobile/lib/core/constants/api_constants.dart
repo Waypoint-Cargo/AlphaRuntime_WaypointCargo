@@ -22,8 +22,19 @@ class ApiConstants {
   // Driver endpoints (a driver task is identified by its trip id)
   static const String deliveriesToday = '/deliveries/today';
   static const String deliveriesAvailable = '/deliveries/available';
+  static const String deliveriesSummary = '/deliveries/summary';
   static String deliveryTaskSelect(String tripId) =>
       '/deliveries/tasks/${Uri.encodeComponent(tripId)}/select';
+  static String deliveryTripDepart(String tripId) =>
+      '/deliveries/trips/${Uri.encodeComponent(tripId)}/depart';
+  static String deliveryStopEvents(String stopId) =>
+      '/deliveries/stops/${Uri.encodeComponent(stopId)}/events';
+  static String deliveryStopProof(String stopId) =>
+      '/deliveries/stops/${Uri.encodeComponent(stopId)}/proof';
+  static String tripSequenceRequests(String tripId) =>
+      '/trips/${Uri.encodeComponent(tripId)}/sequence-requests';
+  static const String files = '/files';
+  static const String issues = '/issues';
 
   // Loader endpoints (a loading task is identified by its trip id)
   static const String loadingSummary = '/loading/summary';

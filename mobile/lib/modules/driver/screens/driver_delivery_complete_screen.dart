@@ -1,16 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_style.dart';
-import '../../../models/driver_stop.dart';
+import '../../../core/services/driver_service.dart';
+import '../../../providers/driver_provider.dart';
+import '../widgets/driver_feedback.dart';
+import '../widgets/signature_pad.dart';
+import 'driver_route_screen.dart';
 
+/// The last step of a stop: the receiver signs, and the proof is filed.
 class DriverDeliveryCompleteScreen extends StatefulWidget {
-  final DriverStop stop;
+  final String tripId;
+  final String stopId;
   final String receiverName;
+
+  /// True when every item goes over as loaded; otherwise [lines] says how many.
+  final bool allDeliveredAsPlanned;
+  final List<DeliveredLine>? lines;
 
   const DriverDeliveryCompleteScreen({
     super.key,
-    required this.stop,
+    required this.tripId,
+    required this.stopId,
     required this.receiverName,
+    required this.allDeliveredAsPlanned,
+    this.lines,
   });
 
   @override
@@ -20,76 +34,135 @@ class DriverDeliveryCompleteScreen extends StatefulWidget {
 
 class _DriverDeliveryCompleteScreenState
     extends State<DriverDeliveryCompleteScreen> {
-  bool signatureAdded = false;
-  bool photoAdded = false;
+  final SignatureController _signature = SignatureController();
+  bool _submitting = false;
 
-  bool get ready => signatureAdded && photoAdded;
+  @override
+  void initState() {
+    super.initState();
+    _signature.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _signature.dispose();
+    super.dispose();
+  }
+
+  bool get ready => !_signature.isEmpty && !_submitting;
+
+  Future<void> _completeDelivery() async {
+    if (!ready) return;
+    final driver = context.read<DriverProvider>();
+    setState(() => _submitting = true);
+    final png = await _signature.toPng();
+    final ok = await driver.submitProof(
+      widget.stopId,
+      receiverName: widget.receiverName,
+      signaturePng: png,
+      allDeliveredAsPlanned: widget.allDeliveredAsPlanned,
+      lines: widget.lines,
+    );
+    if (!mounted) return;
+    setState(() => _submitting = false);
+
+    if (!ok) {
+      showDriverError(
+        context,
+        driver.actionError ?? 'Could not complete the delivery.',
+      );
+      return;
+    }
+
+    final tripDone = driver.tripFinished;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          icon: const Icon(
+            Icons.check_circle,
+            color: AppColors.success,
+            size: 48,
+          ),
+          title: Text(tripDone ? 'Trip Completed' : 'Delivery Completed'),
+          content: Text(
+            tripDone
+                ? 'That was the last stop. Great work!'
+                : 'The stop has been successfully completed.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Done'),
+            ),
+          ],
+        );
+      },
+    );
+    if (!mounted) return;
+
+    // Back to the route, or to the Tasks page once there is nothing left.
+    Navigator.of(context).popUntil(
+      (route) =>
+          route.isFirst ||
+          (!tripDone && route.settings.name == DriverRouteScreen.routeName),
+    );
+    if (tripDone) driver.loadTasks();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final driver = context.watch<DriverProvider>();
+    final task = driver.taskById(widget.tripId);
+    final stop = task?.stopById(widget.stopId);
+
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
-      appBar: AppBar(
-        title: const Text('Complete Delivery'),
-      ),
+      appBar: AppBar(title: const Text('Complete Delivery')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Delivery Proof',
-              style: AppTextStyles.heading2,
-            ),
+            const Text('Delivery Proof', style: AppTextStyles.heading2),
             const SizedBox(height: 5),
             const Text(
-              'Add proof of delivery before completing the stop.',
+              'The receiver signs below to confirm the delivery.',
               style: AppTextStyles.bodySmall,
             ),
-
             const SizedBox(height: 18),
-
-            _proofCard(
-              icon: Icons.draw_outlined,
-              title: 'Receiver Signature',
-              subtitle: signatureAdded
-                  ? 'Signature captured'
-                  : 'Tap to add receiver signature',
-              completed: signatureAdded,
-              onTap: () {
-                setState(() {
-                  signatureAdded = true;
-                });
-              },
+            Row(
+              children: [
+                const Expanded(
+                  child: Text('Receiver Signature', style: AppTextStyles.heading3),
+                ),
+                TextButton(
+                  onPressed: _signature.isEmpty || _submitting
+                      ? null
+                      : _signature.clear,
+                  child: const Text('Clear'),
+                ),
+              ],
             ),
-
-            const SizedBox(height: 12),
-
-            _proofCard(
-              icon: Icons.camera_alt_outlined,
-              title: 'Delivery Photo',
-              subtitle: photoAdded
-                  ? 'Photo captured'
-                  : 'Tap to add delivery photo',
-              completed: photoAdded,
-              onTap: () {
-                setState(() {
-                  photoAdded = true;
-                });
-              },
-            ),
-
+            const SizedBox(height: 6),
+            SignaturePad(controller: _signature),
             const SizedBox(height: 18),
-
-            _summaryCard(),
-
+            _summaryCard(
+              outlet: stop?.outlet.name ?? '',
+              address: stop?.outlet.address ?? '',
+              vehicle: task?.vehicleCode ?? '',
+            ),
             const SizedBox(height: 20),
-
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: ready ? _completeDelivery : null,
-                icon: const Icon(Icons.check_circle_outline),
+                icon: _submitting
+                    ? const ButtonSpinner()
+                    : const Icon(Icons.check_circle_outline),
                 label: const Text('Complete Delivery'),
               ),
             ),
@@ -99,74 +172,12 @@ class _DriverDeliveryCompleteScreenState
     );
   }
 
-  Widget _proofCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool completed,
-    required VoidCallback onTap,
+  Widget _summaryCard({
+    required String outlet,
+    required String address,
+    required String vehicle,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(15),
-      child: Container(
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          color: AppColors.cardBackground,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(
-            color: completed
-                ? AppColors.success
-                : Colors.transparent,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: completed
-                    ? AppColors.successLight
-                    : AppColors.greenSurface,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                completed ? Icons.check : icon,
-                color: completed
-                    ? AppColors.success
-                    : AppColors.deepForestGreen,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: AppTextStyles.heading3,
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    style: AppTextStyles.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.chevron_right,
-              color: AppColors.secondaryText,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _summaryCard() {
+    final delivered = widget.lines?.fold<int>(0, (a, l) => a + l.deliveredQty);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -177,18 +188,19 @@ class _DriverDeliveryCompleteScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Delivery Summary',
-            style: AppTextStyles.heading3,
-          ),
+          const Text('Delivery Summary', style: AppTextStyles.heading3),
           const SizedBox(height: 12),
-          _row('Outlet', widget.stop.outlet),
-          _row('Address', widget.stop.address),
-          _row('Vehicle', 'V-012'),
+          _row('Outlet', outlet),
+          if (address.isNotEmpty) _row('Address', address),
+          _row('Vehicle', vehicle),
           _row('Receiver', widget.receiverName),
           _row(
+            'Items',
+            delivered == null ? 'All items as loaded' : '$delivered units delivered',
+          ),
+          _row(
             'Status',
-            ready ? 'Ready to complete' : 'Proof required',
+            _signature.isEmpty ? 'Signature required' : 'Ready to complete',
           ),
         ],
       ),
@@ -203,60 +215,11 @@ class _DriverDeliveryCompleteScreenState
         children: [
           SizedBox(
             width: 85,
-            child: Text(
-              label,
-              style: AppTextStyles.labelMedium,
-            ),
+            child: Text(label, style: AppTextStyles.labelMedium),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: AppTextStyles.labelLarge,
-            ),
-          ),
+          Expanded(child: Text(value, style: AppTextStyles.labelLarge)),
         ],
       ),
-    );
-  }
-
-  void _completeDelivery() {
-    // Later:
-    // POST /api/deliveries/stops/:stopId/proof
-    //
-    // Send:
-    // - receiver
-    // - signature
-    // - photo
-    // - delivery result
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return AlertDialog(
-          icon: const Icon(
-            Icons.check_circle,
-            color: AppColors.success,
-            size: 48,
-          ),
-          title: const Text('Delivery Completed'),
-          content: Text(
-            '${widget.stop.outlet} has been successfully completed.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-
-                Navigator.of(context).popUntil(
-                  (route) => route.isFirst,
-                );
-              },
-              child: const Text('Done'),
-            ),
-          ],
-        );
-      },
     );
   }
 }

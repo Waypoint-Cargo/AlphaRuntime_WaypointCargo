@@ -9,6 +9,7 @@
  * Run with: node prisma/seed-demo-dataset.js
  */
 import "dotenv/config";
+import bcrypt from "bcrypt";
 import { getPrisma, disconnectDatabase } from "../src/config/database.js";
 
 const CATALOG_ITEMS = [
@@ -111,8 +112,40 @@ async function seed() {
   const kdyDepot = depots.find((d) => d.code === "KDY") || depots[1] || plyDepot;
   console.log(`Using depots: PLY (${plyDepot.id}), KDY (${kdyDepot.id})`);
 
-  // 2. Ensure User Ezza Davis (dis_003) has full Dispatcher depot access
-  const ezza = await db.user.findFirst({
+  // 1.5 Seed Calendar Days for order date foreign keys
+  console.log("Seeding calendar days...");
+  const startDate = new Date("2026-09-01T00:00:00.000Z");
+  const endDate = new Date("2026-12-31T00:00:00.000Z");
+  const days = [];
+  for (let d = new Date(startDate); d <= endDate; d.setUTCDate(d.getUTCDate() + 1)) {
+    const dateObj = new Date(d);
+    const dayOfWeek = dateObj.getUTCDay();
+    const isSunday = dayOfWeek === 0;
+    const isSaturday = dayOfWeek === 6;
+    const dateStr = dateObj.toISOString().slice(0, 10);
+    const isOperatingDay = dateStr === "2026-10-04" ? true : !isSunday;
+    days.push({
+      date: dateObj,
+      isOperatingDay,
+      isWeekend: isSaturday || isSunday,
+      isPayday: dateObj.getUTCDate() === 25,
+      isMonsoon: false,
+    });
+  }
+  for (const day of days) {
+    await db.calendarDay.upsert({
+      where: { date: day.date },
+      update: { isOperatingDay: day.isOperatingDay },
+      create: day,
+    });
+  }
+  console.log(`Calendar ready: ${days.length} days (2026-09-01 to 2026-12-31).`);
+
+  // 2. Ensure User Ezza Davis (dis_003) and core accounts exist
+  const defaultPassword = process.env.DISPATCHER_PASSWORD || "Passw0rd123#";
+  const passwordHash = await bcrypt.hash(defaultPassword, 10);
+
+  let ezza = await db.user.findFirst({
     where: {
       OR: [
         { email: "ezzadavis398@gmail.com" },
@@ -121,21 +154,78 @@ async function seed() {
     },
   });
 
-  if (ezza) {
-    console.log(`Configuring Dispatcher Ezza Davis (${ezza.email})...`);
+  if (!ezza) {
+    ezza = await db.user.create({
+      data: {
+        email: "ezzadavis398@gmail.com",
+        password: passwordHash,
+        fullName: "Ezza Davis",
+        role: "DISPATCHER",
+        employeeNumber: "dis_003",
+        phone: "+94778995366",
+        isActive: true,
+        isApproved: true,
+        approvedAt: new Date(),
+      },
+    });
+    console.log("Created Dispatcher account: ezzadavis398@gmail.com / Passw0rd123#");
+  } else {
     await db.user.update({
       where: { id: ezza.id },
       data: { isActive: true, isApproved: true },
     });
+  }
 
-    for (const d of [plyDepot, kdyDepot]) {
-      await db.userDepot.upsert({
-        where: { userId_depotId: { userId: ezza.id, depotId: d.id } },
-        update: {},
-        create: { userId: ezza.id, depotId: d.id },
-      });
-    }
-    console.log(`Dispatcher Ezza Davis assigned to depots PLY & KDY.`);
+  for (const d of [plyDepot, kdyDepot]) {
+    await db.userDepot.upsert({
+      where: { userId_depotId: { userId: ezza.id, depotId: d.id } },
+      update: {},
+      create: { userId: ezza.id, depotId: d.id },
+    });
+  }
+  console.log(`Dispatcher Ezza Davis assigned to depots PLY & KDY.`);
+
+  // Ensure Admin User exists
+  const adminEmail = process.env.ADMIN_EMAIL || "admin@waypoint.local";
+  const adminPassword = process.env.ADMIN_PASSWORD || "WpiV05CF1Y-X6U7";
+  const adminHash = await bcrypt.hash(adminPassword, 10);
+  await db.user.upsert({
+    where: { email: adminEmail },
+    update: { isActive: true, isApproved: true },
+    create: {
+      email: adminEmail,
+      password: adminHash,
+      fullName: process.env.ADMIN_FULL_NAME || "System Administrator",
+      role: "ADMIN",
+      employeeNumber: process.env.ADMIN_EMPLOYEE_NUMBER || "adm_001",
+      phone: "+94770000001",
+      isActive: true,
+      isApproved: true,
+      approvedAt: new Date(),
+    },
+  });
+
+  // Ensure Store Manager exists for OUT001
+  const out001Outlet = await db.outlet.findFirst({ where: { code: "OUT001" } });
+  if (out001Outlet) {
+    const smEmail = "store.manager@waypointcargo.lk";
+    const smHash = await bcrypt.hash("StoreManager@123#", 10);
+    await db.user.upsert({
+      where: { email: smEmail },
+      update: { outletId: out001Outlet.id, isActive: true, isApproved: true },
+      create: {
+        email: smEmail,
+        password: smHash,
+        fullName: "Colombo Store Manager",
+        role: "STORE_MANAGER",
+        employeeNumber: "sm_001",
+        phone: "+94770000002",
+        outletId: out001Outlet.id,
+        isActive: true,
+        isApproved: true,
+        approvedAt: new Date(),
+      },
+    });
   }
 
   // 3. Upsert Stock Catalog (10,000 units on hand for each SKU)

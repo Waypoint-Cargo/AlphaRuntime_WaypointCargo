@@ -8,11 +8,15 @@ class DriverMapPlaceholder extends StatelessWidget {
   final String eta;
   final String distance;
 
+  /// What the second chip is called ('Distance' by default).
+  final String distanceLabel;
+
   const DriverMapPlaceholder({
     super.key,
     required this.destination,
     required this.eta,
     required this.distance,
+    this.distanceLabel = 'Distance',
   });
 
   @override
@@ -85,7 +89,7 @@ class DriverMapPlaceholder extends StatelessWidget {
                 Expanded(
                   child: _info(
                     Icons.route_outlined,
-                    'Distance',
+                    distanceLabel,
                     distance,
                   ),
                 ),

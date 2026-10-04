@@ -8,6 +8,15 @@ const db = getPrisma();
 const day = (s) => new Date(`${s}T00:00:00.000Z`);
 const corrected = (d, o = 0) => new Date(new Date(d).getTime() + o);
 const terminal = ["COMPLETED", "PARTIAL", "FAILED", "SKIPPED"];
+// "Today" is the Asia/Colombo calendar date, the same day the loader app works on.
+const colomboToday = () =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Colombo" }).format(
+    new Date(),
+  );
+// A trip becomes a driver task once the loader has finished it (status LOADED). The plan may still be a draft:
+// loaders work on allocated routes without waiting for the dispatcher to publish.
+const TASK_PLAN_STATUSES = ["CLOSED", "DRAFT", "PUBLISHED", "IN_EXECUTION"];
+const MY_PLAN_STATUSES = [...TASK_PLAN_STATUSES, "COMPLETED"];
 async function notifyOutletTx(
   tx,
   outletId,
@@ -190,33 +199,52 @@ const tripInclude = {
     },
   },
 };
+// The driver's own trips: the given day exactly, or (no date) today's plus any trip still to be driven.
 async function trips(user, date) {
   return db.trip.findMany({
     where: {
       driverId: user.id,
-      deliveryDate: date,
-      plan: { status: { in: ["PUBLISHED", "IN_EXECUTION", "COMPLETED"] } },
+      ...(date
+        ? { deliveryDate: date }
+        : {
+            OR: [
+              { deliveryDate: day(colomboToday()) },
+              { status: { in: ["LOADED", "IN_TRANSIT"] } },
+            ],
+          }),
+      plan: { status: { in: MY_PLAN_STATUSES } },
     },
     orderBy: { tripNumber: "asc" },
     include: tripInclude,
   });
 }
-// Tasks a driver can pick: loaded, published trips nobody has taken yet.
-const availableWhere = (date) => ({
-  driverId: null,
-  deliveryDate: date,
-  status: "LOADED",
-  plan: { status: { in: ["PUBLISHED", "IN_EXECUTION"] } },
-});
-export async function getAvailable(user, q) {
-  const d = q.date ? day(q.date) : day(new Date().toISOString().slice(0, 10)),
-    ts = await db.trip.findMany({
-      where: availableWhere(d),
-      orderBy: [{ tripNumber: "asc" }, { code: "asc" }],
-      include: tripInclude,
-    });
+// Tasks a driver can pick: trips the loader has finished that nobody has taken yet. A driver who works at
+// specific depots only sees those; one without any depot sees every depot (approved drivers get no depot row).
+async function availableWhere(user, date) {
+  const depots = (
+    await db.userDepot.findMany({
+      where: { userId: user.id },
+      select: { depotId: true },
+    })
+  ).map((x) => x.depotId);
   return {
-    date: d.toISOString().slice(0, 10),
+    driverId: null,
+    status: "LOADED",
+    ...(date ? { deliveryDate: date } : {}),
+    plan: {
+      status: { in: TASK_PLAN_STATUSES },
+      ...(depots.length ? { depotId: { in: depots } } : {}),
+    },
+  };
+}
+export async function getAvailable(user, q) {
+  const ts = await db.trip.findMany({
+    where: await availableWhere(user, q.date ? day(q.date) : null),
+    orderBy: [{ deliveryDate: "asc" }, { tripNumber: "asc" }, { code: "asc" }],
+    include: tripInclude,
+  });
+  return {
+    date: q.date ?? colomboToday(),
     generatedAt: new Date(),
     trips: ts.map(bundleTrip),
   };
@@ -226,25 +254,32 @@ export async function selectTask(user, tripId) {
   const t = await db.trip.findUnique({ where: { id: tripId } });
   if (!t) throw new AppError("Trip not found", 404);
   if (t.driverId === user.id) return { trip: await loadBundle(tripId) };
-  if (t.driverId) throw new AppError("Another driver has already taken this task.", 409, {
-      code: "TASK_TAKEN",
-    });
+  const gone = (code, message) => new AppError(message, 409, { code });
+  if (t.driverId)
+    throw gone("TASK_TAKEN", "Another driver has already taken this task.");
+  // only a trip the driver could see in the list can be taken
+  if (
+    !(await db.trip.findFirst({
+      where: { id: tripId, ...(await availableWhere(user, null)) },
+      select: { id: true },
+    }))
+  )
+    throw gone("TASK_NOT_AVAILABLE", "This task is no longer available.");
   const active = await db.trip.findFirst({
     where: { driverId: user.id, status: { in: ["LOADED", "IN_TRANSIT"] } },
   });
-  if (active) throw new AppError(
+  if (active)
+    throw gone(
+      "DRIVER_HAS_ACTIVE_TASK",
       "Finish your current task before selecting another one.",
-      409,
-      { code: "DRIVER_HAS_ACTIVE_TASK" },
     );
   await db.$transaction(async (tx) => {
     const { count } = await tx.trip.updateMany({
       where: { id: tripId, driverId: null, status: "LOADED" },
       data: { driverId: user.id, version: { increment: 1 } },
     });
-    if (!count) throw new AppError("This task is no longer available.", 409, {
-        code: "TASK_NOT_AVAILABLE",
-      });
+    if (!count)
+      throw gone("TASK_NOT_AVAILABLE", "This task is no longer available.");
     await tx.auditLog.create({
       data: {
         actorId: user.id,
@@ -264,8 +299,8 @@ async function loadBundle(tripId) {
   );
 }
 export async function getToday(user, q) {
-  const d = q.date ? day(q.date) : day(new Date().toISOString().slice(0, 10)),
-    ts = await trips(user, d),
+  const d = day(q.date ?? colomboToday()),
+    ts = await trips(user, q.date ? d : null),
     payload = ts.map(bundleTrip);
   const raw = ts
     .flatMap((t) => [

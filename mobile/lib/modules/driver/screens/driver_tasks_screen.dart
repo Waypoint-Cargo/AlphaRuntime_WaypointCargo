@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
@@ -8,12 +9,20 @@ import '../../../core/widgets/app_loading_state.dart';
 import '../../../core/widgets/app_notice.dart';
 import '../../../models/driver_task.dart';
 import '../../../providers/driver_provider.dart';
+import '../widgets/driver_feedback.dart';
 import 'driver_route_screen.dart';
 
 /// The driver Task page: the routes ready to be driven. Nobody is assigned at
-/// planning time; the driver picks one here and then carries on with it.
+/// planning time; once the loader finishes a trip it shows up here and the
+/// driver picks it, then carries on with it.
 class DriverTasksScreen extends StatefulWidget {
-  const DriverTasksScreen({super.key});
+  /// How often the lists refresh by themselves while the page is open.
+  final Duration refreshEvery;
+
+  const DriverTasksScreen({
+    super.key,
+    this.refreshEvery = const Duration(seconds: 20),
+  });
 
   @override
   State<DriverTasksScreen> createState() => _DriverTasksScreenState();
@@ -22,6 +31,7 @@ class DriverTasksScreen extends StatefulWidget {
 class _DriverTasksScreenState extends State<DriverTasksScreen> {
   // The task being selected right now; its button shows a spinner.
   String? _selectingId;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -29,13 +39,30 @@ class _DriverTasksScreenState extends State<DriverTasksScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<DriverProvider>().loadTasks();
     });
+    // New trips appear when a loader finishes one, and a trip another driver
+    // took has to disappear: keep the lists current without a manual refresh.
+    _timer = Timer.periodic(widget.refreshEvery, (_) {
+      if (!mounted || _selectingId != null) return;
+      final driver = context.read<DriverProvider>();
+      if (!driver.isLoading) driver.loadTasks();
+    });
   }
 
-  void _openRoute() {
-    Navigator.push(
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _openRoute(String tripId) async {
+    await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const DriverRouteScreen()),
+      MaterialPageRoute(
+        settings: const RouteSettings(name: DriverRouteScreen.routeName),
+        builder: (_) => DriverRouteScreen(tripId: tripId),
+      ),
     );
+    if (mounted) context.read<DriverProvider>().loadTasks();
   }
 
   Future<void> _select(DriverTask task) async {
@@ -47,17 +74,15 @@ class _DriverTasksScreenState extends State<DriverTasksScreen> {
     setState(() => _selectingId = null);
 
     if (!ok) {
-      final message = driver.actionError;
-      if (message != null) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(message)));
-      }
+      showDriverError(
+        context,
+        driver.actionError ?? 'Could not select this task.',
+      );
       // Show what is really available now.
       driver.loadTasks();
       return;
     }
-    _openRoute();
+    _openRoute(task.id);
   }
 
   @override
@@ -65,7 +90,7 @@ class _DriverTasksScreenState extends State<DriverTasksScreen> {
     final driver = context.watch<DriverProvider>();
     final nothingShown = driver.available.isEmpty && driver.myTasks.isEmpty;
 
-    if (nothingShown && driver.isLoading) {
+    if (nothingShown && !driver.hasLoaded && driver.error == null) {
       return const AppLoadingState(message: 'Loading tasks...');
     }
     if (nothingShown && driver.error != null) {
@@ -77,6 +102,7 @@ class _DriverTasksScreenState extends State<DriverTasksScreen> {
       );
     }
 
+    final summary = driver.summary;
     return RefreshIndicator(
       color: AppColors.deepForestGreen,
       onRefresh: driver.loadTasks,
@@ -94,16 +120,19 @@ class _DriverTasksScreenState extends State<DriverTasksScreen> {
               ),
               const SizedBox(height: 12),
             ],
+            if (summary.totalStops > 0) ...[
+              _overviewCard(summary),
+              const SizedBox(height: 18),
+            ],
             if (driver.myTasks.isNotEmpty) ...[
               const Text('My Task', style: AppTextStyles.heading3),
               const SizedBox(height: 10),
               for (final task in driver.myTasks)
                 _TaskCard(
                   task: task,
-                  actionLabel: task.isInTransit
-                      ? 'Continue Delivery'
-                      : 'Start Delivery',
-                  onAction: _openRoute,
+                  actionLabel:
+                      task.isInTransit ? 'Continue Delivery' : 'Start Delivery',
+                  onAction: () => _openRoute(task.id),
                 ),
               const SizedBox(height: 14),
             ],
@@ -125,6 +154,34 @@ class _DriverTasksScreenState extends State<DriverTasksScreen> {
       ),
     );
   }
+
+  Widget _overviewCard(DriverSummary summary) {
+    Widget stat(String label, String value) => Expanded(
+          child: Column(
+            children: [
+              Text(label, style: AppTextStyles.labelSmall),
+              const SizedBox(height: 2),
+              Text(value, style: AppTextStyles.heading2),
+            ],
+          ),
+        );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          stat('Total Stops', '${summary.totalStops}'),
+          stat('Completed', '${summary.completedStops}'),
+          stat('Remaining', '${summary.remainingStops}'),
+        ],
+      ),
+    );
+  }
 }
 
 class _EmptyState extends StatelessWidget {
@@ -143,7 +200,7 @@ class _EmptyState extends StatelessWidget {
           Text('No available tasks', style: AppTextStyles.heading3),
           SizedBox(height: 4),
           Text(
-            'Routes appear here once they are loaded and ready to go',
+            'Routes appear here as soon as the loader has finished loading them',
             style: AppTextStyles.bodySmall,
             textAlign: TextAlign.center,
           ),
@@ -168,7 +225,7 @@ class _TaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final outlets = task.stops.map((s) => s.outletName).join(' → ');
+    final outlets = task.stops.map((s) => s.outlet.name).join(' → ');
 
     return Container(
       width: double.infinity,
@@ -196,16 +253,14 @@ class _TaskCard extends StatelessWidget {
                   style: AppTextStyles.heading3,
                 ),
               ),
-              Text(
-                'Trip ${task.tripNumber}',
-                style: AppTextStyles.labelMedium,
-              ),
+              Text('Trip ${task.tripNumber}', style: AppTextStyles.labelMedium),
             ],
           ),
           const SizedBox(height: 8),
           Text(
             '${task.vehicleCode} · ${task.stops.length} stop(s)'
-            '${task.plannedDistanceKm > 0 ? ' · ${task.plannedDistanceKm.toStringAsFixed(1)} km' : ''}',
+            '${task.plannedDistanceKm > 0 ? ' · ${task.plannedDistanceKm.toStringAsFixed(1)} km' : ''}'
+            '${task.doneStops > 0 ? ' · ${task.doneStops} done' : ''}',
             style: AppTextStyles.bodySmall,
           ),
           if (task.depotName.isNotEmpty) ...[
@@ -226,13 +281,7 @@ class _TaskCard extends StatelessWidget {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: isBusy ? null : onAction,
-              child: isBusy
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(actionLabel),
+              child: isBusy ? const ButtonSpinner() : Text(actionLabel),
             ),
           ),
         ],

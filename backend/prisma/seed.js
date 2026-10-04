@@ -63,13 +63,16 @@ const DRIVERS = [
 ];
 
 async function ensureStockTable() {
-	const ddl = fs.readFileSync(path.join(__dirname, "sql", "add_stock.sql"), "utf8");
-	const statements = ddl
-		.split(/;\s*$/m)
-		.map((s) => s.replace(/^--.*$/gm, "").trim())
-		.filter(Boolean);
-	for (const stmt of statements) await prisma.$executeRawUnsafe(stmt);
-	console.log("Stock table ready.");
+	const sqlPath = path.join(__dirname, "sql", "add_stock.sql");
+	if (fs.existsSync(sqlPath)) {
+		const ddl = fs.readFileSync(sqlPath, "utf8");
+		const statements = ddl
+			.split(/;\s*$/m)
+			.map((s) => s.replace(/^--.*$/gm, "").trim())
+			.filter(Boolean);
+		for (const stmt of statements) await prisma.$executeRawUnsafe(stmt);
+		console.log("Stock table ready.");
+	}
 }
 
 async function seedStock(depots) {

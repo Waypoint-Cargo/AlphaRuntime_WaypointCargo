@@ -12,6 +12,7 @@ import trackingRoutes from "../modules/tracking/tracking.routes.js";
 import planningRoutes from "../modules/planning/planning.routes.js";
 import allocationsRoutes from "../modules/allocations/allocations.routes.js";
 import loadingRoutes from "../modules/loading/loading.routes.js";
+import filesRoutes from "../modules/files/files.routes.js";
 
 
 const router = Router();
@@ -29,6 +30,7 @@ router.use('/tracking', trackingRoutes);
 router.use('/plans', planningRoutes);
 router.use('/allocations', allocationsRoutes);
 router.use('/loading', loadingRoutes);
+router.use("/files", filesRoutes);
 // add all routes here...
 
 export default router;
