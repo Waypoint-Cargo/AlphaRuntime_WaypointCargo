@@ -327,6 +327,21 @@ class _PendingTasksScreenState extends State<PendingTasksScreen> {
 
   Widget _buildTabButton(LoaderProvider loader, TaskTab tab, String label) {
     final bool isSelected = loader.tab == tab;
+    final bool isPending = tab == TaskTab.pending;
+
+    final Color activeBgColor = isPending ? AppColors.gold : AppColors.deepForestGreen;
+    final Color activeTextColor = isPending ? AppColors.deepForestGreen : AppColors.white;
+    final BoxShadow activeShadow = isPending
+        ? const BoxShadow(
+            color: Color(0x22F2BE32),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          )
+        : const BoxShadow(
+            color: Color(0x140D302D),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          );
 
     return Expanded(
       child: GestureDetector(
@@ -335,17 +350,9 @@ class _PendingTasksScreenState extends State<PendingTasksScreen> {
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeInOut,
           decoration: BoxDecoration(
-            color: isSelected ? AppColors.deepForestGreen : Colors.transparent,
+            color: isSelected ? activeBgColor : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
-            boxShadow: isSelected
-                ? const [
-                    BoxShadow(
-                      color: Color(0x140D302D),
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    ),
-                  ]
-                : null,
+            boxShadow: isSelected ? [activeShadow] : null,
           ),
           alignment: Alignment.center,
           child: Text(
@@ -353,7 +360,7 @@ class _PendingTasksScreenState extends State<PendingTasksScreen> {
             style: TextStyle(
               fontSize: 13.5,
               fontWeight: FontWeight.bold,
-              color: isSelected ? AppColors.white : AppColors.secondaryText,
+              color: isSelected ? activeTextColor : AppColors.secondaryText,
             ),
           ),
         ),

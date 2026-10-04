@@ -18,7 +18,6 @@ import '../../task/screens/task_screens.dart';
 import '../../task/widgets/loader_feedback.dart';
 import '../widgets/quick_action.dart';
 import '../widgets/today_glance_card.dart';
-import '../widgets/today_overview_card.dart';
 
 class LoaderHomeScreen extends StatefulWidget {
   const LoaderHomeScreen({super.key});
@@ -220,9 +219,9 @@ class _LoaderHomeScreenState extends State<LoaderHomeScreen> {
               const SizedBox(height: 14),
             ],
 
-            // Section 1: Today at a glance
+            // Section 1: Today's Overview
             const Text(
-              'Today at a glance',
+              "Today's Overview",
               style: AppTextStyles.heading3,
             ),
             const SizedBox(height: 12),
@@ -252,13 +251,25 @@ class _LoaderHomeScreenState extends State<LoaderHomeScreen> {
                 ),
               ],
             ),
-
-            const SizedBox(height: 22),
-
-            // Section 2: Today's Overview
-            TodayOverviewCard(
-              itemsToLoad: '${summary.itemsToLoad}',
-              departures: '${summary.departures}',
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                TodayGlanceCard(
+                  title: 'Items to Load',
+                  count: '${summary.itemsToLoad}',
+                  icon: Icons.inventory_2_outlined,
+                  iconColor: AppColors.pending,
+                  iconBgColor: AppColors.pendingLight,
+                ),
+                const SizedBox(width: 10),
+                TodayGlanceCard(
+                  title: 'Departures',
+                  count: '${summary.departures}',
+                  icon: Icons.local_shipping_outlined,
+                  iconColor: AppColors.pending,
+                  iconBgColor: AppColors.pendingLight,
+                ),
+              ],
             ),
 
             const SizedBox(height: 22),

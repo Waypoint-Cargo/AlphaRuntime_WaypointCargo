@@ -536,6 +536,69 @@ void main() {
     // Verify Error SnackBar is displayed
     expect(find.text('No account found with this email address.'), findsOneWidget);
   });
+
+  testWidgets("LoaderHomeScreen renders Today's Overview header with Pending Loads, Issues, Items to Load, and Departures cards", (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.reset);
+
+    final mockClient = MockClient((request) async {
+      if (request.url.path.endsWith('/loading/summary')) {
+        return http.Response(
+          jsonEncode({
+            'success': true,
+            'data': {
+              'pendingLoads': 5,
+              'openIssues': 2,
+              'itemsToLoad': 248,
+              'departures': 3,
+              'nextStep': {
+                'title': 'Start Loading',
+                'message': 'Truck ready for loading',
+                'isResume': false,
+                'isAllClear': false,
+              }
+            }
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      return http.Response('Not Found', 404);
+    });
+
+    final auth = AuthProvider(apiService: ApiService(client: mockClient));
+    final loader = LoaderProvider(apiService: auth.apiService);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<AuthProvider>.value(value: auth),
+          ChangeNotifierProvider<LoaderProvider>.value(value: loader),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const LoaderHomeScreen(),
+          routes: AppRoutes.routes,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify "Today's Overview" section title
+    expect(find.text("Today's Overview"), findsOneWidget);
+    expect(find.text('Today at a glance'), findsNothing);
+
+    // Verify cards are rendered with their labels and values
+    expect(find.text('Pending Loads'), findsOneWidget);
+    expect(find.text('5'), findsOneWidget);
+    expect(find.text('Issues'), findsNWidgets(2)); // Card header + Bottom nav label
+    expect(find.text('2'), findsOneWidget);
+    expect(find.text('Items to Load'), findsOneWidget);
+    expect(find.text('248'), findsOneWidget);
+    expect(find.text('Departures'), findsOneWidget);
+    expect(find.text('3'), findsOneWidget);
+  });
 }
 
 
