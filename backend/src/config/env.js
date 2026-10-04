@@ -72,9 +72,18 @@ export const config = Object.freeze({
     maxLoginAttempts: parseInteger(process.env.MAX_LOGIN_ATTEMPTS, 3),
     lockoutDurationMs: parseInteger(process.env.LOCKOUT_DURATION_MS, 15 * 60 * 1000),
 
-    // 15 * 60 * 1000 = 1.5min 
+    // 15 * 60 * 1000 = 15 minutes
     passwordResetExpiryInMs: parseInteger(process.env.PASSWORD_RESET_EXPIRY_MS, 900000),
 
+    frontendUrl: (process.env.FRONTEND_URL ?? parseAllowedOrigins(process.env.ALLOWED_ORIGINS ?? "")[0] ?? "").replace(/\/$/, ""),
+
+    smtpHost: process.env.SMTP_HOST ?? "",
+    smtpPort: parseInteger(process.env.SMTP_PORT, 587),
+    smtpSecure: parseBoolean(process.env.SMTP_SECURE, false), // true for port 465, false for 587/25 (STARTTLS)
+    smtpUser: process.env.SMTP_USER ?? "",
+    smtpPassword: process.env.SMTP_PASSWORD ?? "",
+    mailFromName: process.env.MAIL_FROM_NAME ?? "Waypoint Cargo",
+    mailFromAddress: process.env.MAIL_FROM_ADDRESS ?? process.env.SMTP_USER ?? "",
 
     logLevel: process.env.LOG_LEVEL ?? (nodeEnv === "production" ? "info" : "debug"),
 });

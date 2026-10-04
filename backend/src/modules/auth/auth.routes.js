@@ -3,7 +3,7 @@ import redis from "../../config/redis.js";
 import { createRateLimiter } from "../../middlewares/rateLimiter.js";
 import logger from "../../config/logger.js";
 import { validate } from "../../middlewares/validate.js";
-import { forgotPasswordSchema, googleSignInSchema, loginSchema, registerSchema, resetPasswordSchema } from "./auth.validator.js";
+import { forgotPasswordSchema, loginSchema, refreshTokenSchema, registerSchema, resetPasswordSchema } from "./auth.validator.js";
 import { catchAsync } from "../../utils/catchAsync.js";
 import { forgotPasswordController, loginController, logoutAllController, logoutController, refreshController, registerController, resetPasswordController } from "./auth.controller.js";
 import { authenticateUser } from "../../middlewares/authenticate.js";
@@ -127,10 +127,10 @@ authRouter.post("/login", loginLimiter, validate(loginSchema), catchAsync(loginC
 authRouter.post("/register", registerLimiter, validate(registerSchema), catchAsync(registerController));
 
 // POST /auth/refresh
-authRouter.post("/refresh", refreshLimiter, catchAsync(refreshController));
+authRouter.post("/refresh", refreshLimiter, validate(refreshTokenSchema), catchAsync(refreshController));
 
 // POST /auth/logout
-authRouter.post("/logout", logoutLimiter, catchAsync(logoutController));
+authRouter.post("/logout", logoutLimiter, validate(refreshTokenSchema), catchAsync(logoutController));
 
 // POST /auth/logout-all  — requires a valid access token
 authRouter.post('/logout-all',
