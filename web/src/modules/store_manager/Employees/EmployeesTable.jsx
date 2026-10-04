@@ -1,6 +1,7 @@
 import { getAvatarColor, getInitials } from "@/shared/utils/userUtils";
 import { formatDateTime } from "@/shared/utils/dateUtils";
-import { pagerItems, roleLabel } from "./employeeUtils";
+import Pager from "@/shared/components/Pager";
+import { roleLabel } from "./employeeUtils";
 
 const COLUMNS = {
   pending: ["Name", "Role", "Phone", "Registered", "Status", "Actions"],
@@ -29,28 +30,6 @@ function StatusBadge({ mode, employee }) {
   return employee.isActive
     ? <span className="badge active">Active</span>
     : <span className="badge inactive">Inactive</span>;
-}
-
-function Pager({ page, pageCount, onPage }) {
-  return (
-    <div className="pager">
-      <button type="button" onClick={() => onPage(page - 1)} disabled={page <= 1} aria-label="Previous page">‹</button>
-      {pagerItems(page, pageCount).map((item, i) => (
-        item === "gap"
-          ? <span key={`gap-${i}`} className="pager-gap" aria-hidden="true">…</span>
-          : (
-            <button
-              type="button" key={item} className={item === page ? "on" : ""}
-              aria-label={`Page ${item}`} aria-current={item === page ? "page" : undefined}
-              onClick={() => onPage(item)}
-            >
-              {item}
-            </button>
-          )
-      ))}
-      <button type="button" onClick={() => onPage(page + 1)} disabled={page >= pageCount} aria-label="Next page">›</button>
-    </div>
-  );
 }
 
 // mode: "pending" (registrations awaiting approval) | "employees" (approved)
