@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/app.dart';
+import 'package:mobile/core/theme/app_theme.dart';
+import 'package:mobile/modules/loader/home/screens/loader_home_screen.dart';
+import 'package:mobile/routes/app_routes.dart';
 
 void main() {
   testWidgets('WaypointCargoApp starts on LoginScreen and renders logo, form, and validation', (WidgetTester tester) async {
@@ -160,3 +163,8 @@ void main() {
     expect(find.text('Welcome back'), findsOneWidget);
   });
 }
+
+
+
+
+
