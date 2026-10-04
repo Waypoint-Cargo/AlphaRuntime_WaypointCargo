@@ -1,25 +1,9 @@
 import { z } from "zod";
-import { USERNAME_CONSTRAINTS } from "@/constants/app.constants";
 
 // Reusable field schemas
-const usernameField = z
-   .string()
-   .min(
-      USERNAME_CONSTRAINTS.MIN,
-      `Username must be at least ${USERNAME_CONSTRAINTS.MIN} characters`,
-   )
-   .max(
-      USERNAME_CONSTRAINTS.MAX,
-      `Username must be at most ${USERNAME_CONSTRAINTS.MAX} characters`,
-   )
-   .regex(
-      USERNAME_CONSTRAINTS.PATTERN,
-      "Only lowercase letters, numbers, and underscores allowed",
-   )
-   .transform((v) => v.toLowerCase());
-
 const emailField = z
    .string()
+   .trim()
    .min(1, "Email is required")
    .email("Enter a valid email address")
    .transform((v) => v.toLowerCase());
@@ -28,29 +12,24 @@ const emailField = z
 const strongPasswordField = z
    .string()
    .min(8, "Password must be at least 8 characters")
+   .max(128, "Password is too long")
    .regex(/[A-Z]/, "Must contain at least one uppercase letter")
    .regex(/[a-z]/, "Must contain at least one lowercase letter")
    .regex(/\d/, "Must contain at least one number")
    .regex(/[^A-Za-z0-9]/, "Must contain at least one special character");
 
-// Login
+// Login — the backend takes one `identifier` field: an employee number OR an email
 export const loginSchema = z.object({
-   username: z.string().min(1, "Username is required"),
-   password: z.string().min(1, "Password is required"),
+   identifier: z
+      .string()
+      .trim()
+      .min(3, "Enter your employee number or email")
+      .max(254, "Employee number or email is too long"),
+   password: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .max(128, "Password is too long"),
 });
-
-// Register
-export const registerSchema = z
-   .object({
-      username: usernameField,
-      email: emailField,
-      password: strongPasswordField,
-      confirmPassword: z.string().min(1, "Please confirm your password"),
-   })
-   .refine((data) => data.password === data.confirmPassword, {
-      message: "Passwords do not match",
-      path: ["confirmPassword"],
-   });
 
 // Forgot password
 export const forgotPasswordSchema = z.object({
@@ -94,3 +73,36 @@ export function getPasswordStrength(password) {
    };
    return { score, level, color: colorMap[level] };
 }
+
+
+// values are the backend `Role` enum names (auth.validator.js registrableRole)
+export const ROLE_OPTIONS = [
+    { value: "DISPATCHER", label: "Dispatcher" },
+    { value: "LOADER", label: "Loader" },
+    { value: "DRIVER", label: "Driver" },
+    { value: "STORE_MANAGER", label: "Store manager" },
+];
+
+export const registerAccountSchema = z
+    .object({
+        fullName: z.string().trim().min(2, "Enter your full name").max(100, "Full name is too long"),
+        email: emailField,
+        countryCode: z.string(),
+        phone: z
+            .string()
+            .transform((v) => v.replace(/[\s-]/g, ""))
+            .pipe(z.string().regex(/^[1-9]\d{8}$/, "Enter a 9-digit mobile number, e.g. 77 123 4567")),
+        password: strongPasswordField,
+        confirmPassword: z.string().min(1, "Please confirm your password"),
+        role: z.enum(
+            ROLE_OPTIONS.map((r) => r.value),
+            { errorMap: () => ({ message: "Select your role" }) },
+        ),
+        terms: z.literal(true, {
+            errorMap: () => ({ message: "You must accept the terms to continue" }),
+        }),
+    })
+    .refine((d) => d.password === d.confirmPassword, {
+        path: ["confirmPassword"],
+        message: "Passwords do not match",
+    });

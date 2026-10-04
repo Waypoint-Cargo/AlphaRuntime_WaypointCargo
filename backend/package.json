@@ -6,11 +6,16 @@
    "scripts": {
       "start": "node src/server.js",
       "dev": "nodemon src/server.js",
-      "test": "echo \"Error: no test specified\" && exit 1",
+      "test": "node --test tests/**/*.test.js",
       "db:generate": "prisma generate",
       "db:migrate": "prisma migrate dev",
       "db:push": "prisma db push",
-      "db:studio": "prisma studio"
+      "db:studio": "prisma studio",
+      "db:seed:outlets": "node prisma/seed-outlets.js",
+      "db:seed:vehicles": "node prisma/seed-vehicles.js",
+      "db:seed:demo": "node prisma/seed-demo-dataset.js",
+      "db:seed:loader-demo": "node prisma/seed-loader-demo.js",
+      "db:check:loader": "node prisma/check-loader-flow.js"
    },
    "keywords": [],
    "author": "",

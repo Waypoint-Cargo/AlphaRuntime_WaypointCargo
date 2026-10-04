@@ -1,72 +1,51 @@
-import {
-   createAsyncThunk,
-   createSlice,
-} from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { tokenService } from "@/services/tokenService";
-import { decodeJwtPayload } from "@/shared/utils/jwtUtils";
-import { rawBaseQuery } from "@/services/baseQuery";
+import { refreshAccessToken } from "@/services/baseQuery";
+import { userFromAccessToken } from "@/shared/utils/jwtUtils";
+import { sessionEnded, tokenRefreshed } from "./authActions";
 
-let _sessionRestoreInFlight = false;
-
-// get new access token using refresh token and restore the session
-// this is used to restore the session when the user refreshes the page or opens the app for the first time
+// Restores the session after a page load / reload.
+// The access token only lives in memory, so it is gone after a reload. The httpOnly
+// refresh cookie survives, so we ask the backend for a new access token with it.
+// Dispatched once, before the first render (see main.jsx).
 export const restoreSession = createAsyncThunk(
    "auth/restoreSession",
-   async (_, { dispatch, getState, rejectWithValue }) => {
-      // prevent double calls
-      if (_sessionRestoreInFlight) {
-         return rejectWithValue("Session restore already in progress");
+   async (_, thunkApi) => {
+      const result = await refreshAccessToken(thunkApi);
+
+      if (!result.accessToken) {
+         // No cookie / expired / revoked / backend unreachable -> stay signed out.
+         // (The backend already clears a bad cookie itself, nothing to do client-side.)
+         return thunkApi.rejectWithValue("No valid session");
       }
 
-      _sessionRestoreInFlight = true;
-
-      try {
-         const result = await rawBaseQuery(
-            { url: "/auth/refresh", method: "POST" },
-            { dispatch, getState },
-            {}
-         );
-
-         if (result.error) {
-            // refresh failed -> logout locally
-            dispatch(logout());
-            // Logout from backend to ensure HTTP-only cookies (like refresh token) are cleared
-            await rawBaseQuery(
-               { url: "/auth/logout", method: "POST" },
-               { dispatch, getState },
-               {}
-            );
-            return rejectWithValue("No valid session");
-         }
-
-         const payload = result.data;
-         return payload.data.accessToken;
-      } catch {
-         return rejectWithValue("Network error during session restore");
-      } finally {
-         _sessionRestoreInFlight = false;
+      const user = userFromAccessToken(result.accessToken);
+      if (!user) {
+         tokenService.clearToken();
+         return thunkApi.rejectWithValue("Unreadable access token");
       }
+
+      return user;
    },
 );
 
 const initialState = {
    user: null,
+   // false until the first restoreSession attempt settles; guards render a spinner meanwhile
    isInitialized: false,
+   // true when the last session ended because the refresh token stopped working
+   sessionExpired: false,
 };
 
 const authSlice = createSlice({
    name: "auth",
    initialState,
    reducers: {
-      // store the access token and update the user state
+      // store the signed-in user (the access token itself is kept in tokenService, not in Redux)
       setCredentials(state, action) {
          state.user = action.payload.user;
-         tokenService.setToken(action.payload.accessToken);
-      },
-
-      logout(state) {
-         state.user = null;
-         tokenService.clearToken();
+         state.isInitialized = true;
+         state.sessionExpired = false;
       },
 
       updateUser(state, action) {
@@ -76,41 +55,43 @@ const authSlice = createSlice({
       },
    },
    extraReducers: (builder) => {
-      // Session restore succeeded — populate user from decoded JWT
       builder.addCase(restoreSession.fulfilled, (state, action) => {
-         const accessToken = action.payload;
-         tokenService.setToken(accessToken);
-         const decoded = decodeJwtPayload(accessToken);
-         if (decoded) {
-            state.user = {
-               id: decoded.sub,
-               username: decoded.username,
-               role: decoded.role,
-               // Read authProvider from the token if present, default to 'local'
-               authProvider: decoded.authProvider ?? "local",
-            };
-         }
-         // Always mark initialized — even if decode somehow fails — so ProtectedRoute
-         // never hangs on the spinner indefinitely.
+         state.user = action.payload;
          state.isInitialized = true;
       });
 
-      // Session restore failed — mark initialized so the app doesn't hang on the splash screen
+      // Mark initialized even on failure so the guards never hang on the spinner
       builder.addCase(restoreSession.rejected, (state) => {
          state.user = null;
          state.isInitialized = true;
       });
+
+      // Keep the user's role/name in step with the newest access token
+      // (the backend re-reads the user from the database on every refresh).
+      builder.addCase(tokenRefreshed, (state, action) => {
+         const fromToken = userFromAccessToken(action.payload.accessToken);
+         if (state.user && fromToken) {
+            state.user = { ...state.user, ...fromToken };
+         }
+      });
+
+      // Logout, logout-all and "refresh token rejected" all end up here
+      builder.addCase(sessionEnded, (state, action) => {
+         state.user = null;
+         state.isInitialized = true;
+         state.sessionExpired = action.payload.reason === "expired";
+      });
    },
 });
 
-export const { setCredentials, logout, updateUser } = authSlice.actions;
+export const { setCredentials, updateUser } = authSlice.actions;
+export { logout, sessionExpired } from "./authActions";
 
 // Selectors
 export const selectUser = (state) => state.auth.user;
-export const selectIsInitialized = (state) =>
-   state.auth.isInitialized;
-export const selectIsAdmin = (state) =>
-   state.auth.user?.role === "ADMIN";
+export const selectUserRole = (state) => state.auth.user?.role ?? null;
+export const selectIsInitialized = (state) => state.auth.isInitialized;
 export const selectIsAuthenticated = (state) => !!state.auth.user;
+export const selectSessionExpired = (state) => state.auth.sessionExpired;
 
 export default authSlice.reducer;
