@@ -93,7 +93,7 @@ export default function CreateOrderPage() {
   // Form State
   const [selectedOutletId, setSelectedOutletId] = useState("");
   const [selectedBrand, setSelectedBrand] = useState("FRESH");
-  const [deliveryDate, setDeliveryDate] = useState(() => colomboDate(1));
+  const [deliveryDate, setDeliveryDate] = useState(() => colomboDate(0));
   const [tempClass, setTempClass] = useState("AMBIENT");
   const [specialInstructions, setSpecialInstructions] = useState("");
   const [isFragile, setIsFragile] = useState(false);

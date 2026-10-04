@@ -478,9 +478,13 @@ completed it) · `TRIP_NOT_LOADABLE`.
    used. A loader with neither gets 403 `NO_DEPOT`.
 4. **"Today"** is the Asia/Colombo date. Without `?date=`, Home and Tasks cover **today and every later day**:
    dispatchers plan and publish the *next* delivery day, so tomorrow's routes must already be in the pool tonight
-   (`meta.upcoming: true`). `?date=` narrows to exactly that day, past days included. A route reaches the pool only
-   once its plan is **published** (`PUBLISHED`/`IN_EXECUTION`/`COMPLETED`): trips of a `DRAFT`/`CLOSED` plan can
-   still be reshuffled or unallocated by the dispatcher, so loaders never see them. `CalendarDay` is not consulted — a non-operating day simply has no
+   (`meta.upcoming: true`). `?date=` narrows to exactly that day, past days included. A route is a loading task
+   as soon as the dispatcher allocates an order to it - the plan is then still `DRAFT` and **publishing is not
+   required** (plan statuses in the pool: `CLOSED`, `DRAFT`, `PUBLISHED`, `IN_EXECUTION`, and `COMPLETED` for the
+   Completed tab). This is safe because claiming moves the trip to `LOADING`, after which the dispatcher can no longer
+   unallocate its orders (`TRIP_LOCKED`) or add to it; an untouched route can still be unallocated and then simply
+   leaves the pool. Publishing later keeps a started session as it is (`createSessionWithChecksTx` leaves an existing
+   session untouched). `CalendarDay` is not consulted — a non-operating day simply has no
    published plan.
 5. **Priority** is derived (section 6); there is no stored priority.
 6. **"Temporarily cancelled" ≠ trip `CANCELLED`.** A shortfall puts the *session* `ON_HOLD` and leaves the

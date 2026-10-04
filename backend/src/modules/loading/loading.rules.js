@@ -16,9 +16,12 @@ import crypto from "node:crypto";
 // Orders a loader may load: planned onto this trip, or already loaded by an earlier pass.
 export const LOADABLE_ORDER_STATUSES = ["PLANNED", "PARTIALLY_LOADED", "LOADED"];
 
-// Plans whose trips are in the shared loading pool. COMPLETED plans stay readable (Completed tab) but are not loadable.
-export const POOL_PLAN_STATUSES = ["PUBLISHED", "IN_EXECUTION"];
-export const VISIBLE_PLAN_STATUSES = ["PUBLISHED", "IN_EXECUTION", "COMPLETED"];
+// Plans whose trips are in the shared loading pool. A trip becomes a loading task the moment the dispatcher allocates an
+// order to it (the plan is then DRAFT); publishing only commits the plan. Once a loader starts a trip it is LOADING and
+// the dispatcher can no longer take orders off it, so an unpublished plan cannot pull the load from under a loader.
+// COMPLETED plans stay readable (Completed tab) but are not loadable.
+export const POOL_PLAN_STATUSES = ["CLOSED", "DRAFT", "PUBLISHED", "IN_EXECUTION"];
+export const VISIBLE_PLAN_STATUSES = [...POOL_PLAN_STATUSES, "COMPLETED"];
 
 // A trip still waiting for (or in the middle of) loading.
 export const PENDING_TRIP_STATUSES = ["PLANNED", "LOADING"];

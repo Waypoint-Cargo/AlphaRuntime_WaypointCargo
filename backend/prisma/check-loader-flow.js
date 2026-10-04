@@ -23,7 +23,7 @@ const dayOf = (value) => value.toISOString().slice(0, 10);
 const diagnose = (trip) => {
     const session = trip.loadingSession;
     if (!VISIBLE_PLAN_STATUSES.includes(trip.plan.status)) {
-        return { visible: false, reason: `plan is ${trip.plan.status}: the dispatcher must press "Publish Plan" in Plan & Allocate` };
+        return { visible: false, reason: `plan is ${trip.plan.status}: loaders see trips once the queue is closed and orders are allocated (CLOSED, DRAFT or PUBLISHED plan)` };
     }
     if (trip.status === "CANCELLED") return { visible: false, reason: "trip is CANCELLED" };
     if (trip.stops.every((stop) => stop.allocations.length === 0)) return { visible: false, reason: "no order is allocated to this trip" };
