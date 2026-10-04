@@ -36,7 +36,14 @@ export const listOrders = async ({ scope, filters, page, pageSize }) => {
 		...(filters.tempClass ? { tempClass: filters.tempClass } : {}),
 		...(filters.outletId ? { outletId: filters.outletId } : {}),
 		...(filters.depotId ? { depotId: filters.depotId } : {}),
-		...(filters.q ? { OR: [{ reference: { contains: filters.q, mode: "insensitive" } }, { outletId: { contains: filters.q, mode: "insensitive" } }] } : {}),
+		...(filters.q ? {
+			OR: [
+				{ reference: { contains: filters.q, mode: "insensitive" } },
+				{ outletId: { contains: filters.q, mode: "insensitive" } },
+				{ outlet: { name: { contains: filters.q, mode: "insensitive" } } },
+				{ outlet: { district: { contains: filters.q, mode: "insensitive" } } },
+			],
+		} : {}),
 	};
 	const orderBy = filters.sort === "deliveryDate" ? { deliveryDate: "asc" } : filters.sort === "-deliveryDate" ? { deliveryDate: "desc" } : { createdAt: "desc" };
 	const db = getPrisma();

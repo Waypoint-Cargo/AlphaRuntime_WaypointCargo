@@ -106,11 +106,10 @@ export const getOrderContext = async (actor = {}) => {
     const vehicles = actor.vehicles ?? await getPrisma().vehicle.findMany({ where: { homeDepotId: depotId, isActive: true }, select: { id: true, type: true, isRefrigerated: true, maxWeightKg: true, maxVolumeM3: true, homeDepotId: true } });
     const todayParts = dateParts(new Date());
     const today = `${todayParts.year}-${String(todayParts.month).padStart(2, "0")}-${String(todayParts.day).padStart(2, "0")}`;
-    // Start 14 days back: the cutoff is 16:00 on the previous operating day, which can be before today.
     const calendar = actor.operatingDates
         ? null
         : await getPrisma().calendarDay.findMany({
-            where: { date: { gte: toDate(addDays(today, -14)), lte: toDate(addDays(today, 14)) } },
+            where: { date: { gte: toDate(today), lte: toDate(addDays(today, 14)) } },
             select: { date: true, isOperatingDay: true },
         });
     return {
@@ -141,9 +140,7 @@ export const resolveDeliveryDate = ({ requestedDate, now = new Date(), actor = {
     if (!isOperatingDate(candidate, actor)) candidate = nextOperatingDate(candidate, actor);
     for (let attempt = 0; attempt < 14; attempt += 1) {
         if (!candidate) break;
-        const previousDate = previousOperatingDate(candidate, actor);
-        if (!previousDate) break;
-        const cutoffAt = colomboDateTime(previousDate, CUTOFF_HOUR);
+        const cutoffAt = colomboDateTime(previousOperatingDate(candidate, actor), CUTOFF_HOUR);
         if (now <= cutoffAt) {
             return { deliveryDate: candidate, cutoffAt, rolledOver: candidate !== requestedDate };
         }
