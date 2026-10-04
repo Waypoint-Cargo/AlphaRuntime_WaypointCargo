@@ -202,7 +202,7 @@ export default function LiveTracking() {
       <div className="flex-1 flex flex-col lg:flex-row gap-4 md:gap-6 min-h-0 overflow-hidden pb-4 md:pb-0">
         
         {/* Left Column - Active Drivers List */}
-        <div className="w-full lg:w-[350px] bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col lg:h-full flex-shrink-0">
+        <div className="w-full lg:w-[300px] bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col lg:h-full flex-shrink-0">
           <div className="p-4 border-b border-gray-100 flex items-center justify-between">
             <h3 className="font-bold text-gray-900 flex items-center gap-2">
               Active Drivers <span className="bg-[#FFC107] text-[#053D31] px-1.5 py-0.5 rounded text-[10px] font-bold">34</span>
@@ -259,9 +259,7 @@ export default function LiveTracking() {
                     </div>
                     <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
                       <div className={`h-full ${
-                        driver.status === 'Delayed' ? 'bg-orange-400' :
-                        driver.status === 'Completed' ? 'bg-green-500' :
-                        'bg-blue-500'
+                        driver.status === 'Delayed' ? 'bg-orange-400' : 'bg-[#2e7d5b]'
                       }`} style={{ width: `${driver.progress}%` }}></div>
                     </div>
                   </div>
@@ -283,8 +281,8 @@ export default function LiveTracking() {
               zoomControl={false}
             >
               <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               />
               <ZoomControl position="topright" />
               
@@ -329,100 +327,90 @@ export default function LiveTracking() {
           </div>
 
           {/* Bottom Details Panel - Responsive Grid/Flex */}
-          <div className="border-t border-gray-200 bg-white flex flex-col xl:flex-row flex-shrink-0">
+          <div className="border-t border-gray-200 bg-white flex flex-col xl:flex-row flex-shrink-0 w-full">
             
-            {/* Order Info & Driver Info (Group 1 for Mobile) */}
-            <div className="flex flex-col sm:flex-row w-full xl:w-auto flex-shrink-0 border-b xl:border-b-0 border-gray-100">
+            {/* 1. Order Info */}
+            <div className="w-full xl:w-44 p-3 xl:p-4 border-b xl:border-b-0 xl:border-r border-gray-100 flex-shrink-0">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Order Details</p>
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                <h3 className="text-base md:text-xl font-bold text-gray-900 whitespace-nowrap">#GS-10250</h3>
+                <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded whitespace-nowrap">In Transit</span>
+              </div>
+              <p className="text-[10px] text-gray-500 mb-2 md:mb-4">Colombo <span className="mx-1">→</span> Hikkaduwa</p>
               
-              {/* Order Info */}
-              <div className="w-full sm:w-48 p-4 xl:p-5 sm:border-r border-gray-100">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Order Details</p>
-                <div className="flex items-center gap-2 mb-1">
-                  <h3 className="text-base md:text-xl font-bold text-gray-900">#GS-10250</h3>
-                  <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded">In Transit</span>
-                </div>
-                <p className="text-[10px] text-gray-500 mb-2 md:mb-4">Colombo <span className="mx-1">→</span> Hikkaduwa</p>
-                
-                <div className="flex items-center gap-2 text-gray-900 mb-1">
-                  <Clock size={16} className="text-gray-400" />
-                  <span className="font-bold text-xs md:text-sm">ETA 18 min</span>
-                </div>
-                <p className="text-[10px] text-gray-400 flex items-center gap-1 md:ml-6">
-                  <RefreshCcw size={10} /> 12 sec ago
-                </p>
+              <div className="flex items-center gap-2 text-gray-900 mb-1">
+                <Clock size={16} className="text-gray-400" />
+                <span className="font-bold text-xs md:text-sm">ETA 18 min</span>
               </div>
-
-              {/* Driver Info */}
-              <div className="w-full sm:w-64 p-4 xl:p-5 sm:border-r xl:border-r-0 xl:border-l border-gray-100 flex flex-col justify-between">
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Driver</p>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm flex-shrink-0">KP</div>
-                    <div>
-                      <h4 className="font-bold text-gray-900 text-sm leading-tight">Kasun Perera</h4>
-                      <p className="text-[10px] text-gray-500">Van 023 · Toyota Hiace</p>
-                      <p className="text-[10px] font-semibold text-green-600 flex items-center gap-1 mt-0.5"><Phone size={10} /> +94 77 123 4567</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 mt-3">
-                  <button className="flex-1 bg-[#053D31] text-white py-1.5 rounded text-xs font-semibold hover:bg-[#042e25] transition-colors flex items-center justify-center gap-1.5">
-                    <User size={12} /> Details
-                  </button>
-                  <p className="text-[10px] font-semibold text-gray-500 flex items-center gap-1"><Star size={12} className="text-yellow-400" fill="currentColor" /> 4.9 <span className="text-gray-300">|</span> 3.2 km</p>
-                </div>
-              </div>
-
+              <p className="text-[10px] text-gray-400 flex items-center gap-1 md:ml-6">
+                <RefreshCcw size={10} /> 12 sec ago
+              </p>
             </div>
 
-            {/* Timeline & Actions (Group 2 for Mobile) */}
-            <div className="flex flex-col md:flex-row w-full xl:flex-1">
-              
-              {/* Timeline */}
-              <div className="flex-1 p-4 xl:p-5 flex flex-col justify-center border-b md:border-b-0 border-gray-100">
-                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3 md:mb-2">Delivery Progress</p>
-                 <div className="relative w-full flex items-center justify-between px-2 sm:px-4 pt-2 pb-1">
-                    <div className="absolute left-6 right-6 h-1 bg-gray-100 top-4 md:top-1/2 md:-translate-y-1/2 z-0 rounded-full">
-                      <div className="h-full bg-green-500 w-[60%] rounded-full"></div>
+            {/* 2. Timeline */}
+            <div className="flex-1 p-3 xl:p-4 flex flex-col justify-center border-b xl:border-b-0 xl:border-r border-gray-100 min-w-[320px] xl:min-w-[350px]">
+               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3 md:mb-2">Delivery Progress</p>
+               <div className="relative w-full flex items-center justify-between px-2 sm:px-4 pt-2 pb-1">
+                  <div className="absolute left-[10%] right-[10%] h-1 bg-gray-200 top-5 md:top-1/2 md:-translate-y-1/2 z-0 rounded-full">
+                    <div className="h-full bg-green-500 w-[50%] rounded-full"></div>
+                  </div>
+                  
+                  <div className="flex justify-between w-full relative z-10 gap-2">
+                    <div className="flex flex-col items-center flex-1 min-w-0">
+                      <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-green-500 text-white flex items-center justify-center border-2 border-white mb-1.5 md:mb-2"><CheckCircle2 size={10} className="md:w-3 md:h-3" /></div>
+                      <p className="text-[9px] md:text-[10px] font-semibold text-gray-900 text-center leading-tight hidden sm:block whitespace-nowrap px-1">Order<br/>Confirmed</p>
                     </div>
-                    
-                    <div className="flex justify-between w-full relative z-10 gap-1">
-                      <div className="flex flex-col items-center flex-1">
-                        <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-green-500 text-white flex items-center justify-center border-2 border-white mb-1.5 md:mb-2"><CheckCircle2 size={10} className="md:w-3 md:h-3" /></div>
-                        <p className="text-[9px] md:text-[10px] font-semibold text-gray-900 text-center leading-tight hidden sm:block">Order<br/>Confirmed</p>
-                      </div>
-                      <div className="flex flex-col items-center flex-1">
-                        <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-green-500 text-white flex items-center justify-center border-2 border-white mb-1.5 md:mb-2"><Box size={10} className="md:w-3 md:h-3" /></div>
-                        <p className="text-[9px] md:text-[10px] font-semibold text-gray-900 text-center leading-tight hidden sm:block">Picked UP</p>
-                      </div>
-                      <div className="flex flex-col items-center flex-1">
-                        <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-blue-500 text-white flex items-center justify-center border-2 border-white shadow-sm mb-1.5 md:mb-2"><Truck size={10} className="md:w-3 md:h-3" /></div>
-                        <p className="text-[9px] md:text-[10px] font-semibold text-gray-900 text-center leading-tight">In Transit</p>
-                        <p className="text-[8px] md:text-[9px] text-gray-400 mt-0.5">12:18 PM</p>
-                      </div>
-                      <div className="flex flex-col items-center flex-1">
-                        <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-white border-2 border-gray-200 text-gray-300 flex items-center justify-center mb-1.5 md:mb-2"><MapPin size={10} className="md:w-3 md:h-3" /></div>
-                        <p className="text-[9px] md:text-[10px] font-medium text-gray-400 text-center leading-tight hidden sm:block">Out for<br/>Delivery</p>
-                      </div>
-                      <div className="flex flex-col items-center flex-1">
-                        <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-white border-2 border-gray-200 text-gray-300 flex items-center justify-center mb-1.5 md:mb-2"><CheckCircle2 size={10} className="md:w-3 md:h-3" /></div>
-                        <p className="text-[9px] md:text-[10px] font-medium text-gray-400 text-center leading-tight hidden sm:block">Delivered</p>
-                      </div>
+                    <div className="flex flex-col items-center flex-1 min-w-0">
+                      <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-green-500 text-white flex items-center justify-center border-2 border-white mb-1.5 md:mb-2"><Box size={10} className="md:w-3 md:h-3" /></div>
+                      <p className="text-[9px] md:text-[10px] font-semibold text-gray-900 text-center leading-tight hidden sm:block whitespace-nowrap px-1">Picked UP</p>
                     </div>
-                 </div>
-              </div>
+                    <div className="flex flex-col items-center flex-1 min-w-0">
+                      <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-blue-500 text-white flex items-center justify-center border-2 border-white shadow-sm mb-1.5 md:mb-2"><Truck size={10} className="md:w-3 md:h-3" /></div>
+                      <p className="text-[9px] md:text-[10px] font-semibold text-gray-900 text-center leading-tight whitespace-nowrap px-1">In Transit</p>
+                      <p className="text-[8px] md:text-[9px] text-gray-400 mt-0.5 whitespace-nowrap px-1">12:18 PM</p>
+                    </div>
+                    <div className="flex flex-col items-center flex-1 min-w-0">
+                      <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-white border-2 border-gray-200 text-gray-300 flex items-center justify-center mb-1.5 md:mb-2"><MapPin size={10} className="md:w-3 md:h-3" /></div>
+                      <p className="text-[9px] md:text-[10px] font-medium text-gray-400 text-center leading-tight hidden sm:block whitespace-nowrap px-1">Out for<br/>Delivery</p>
+                    </div>
+                    <div className="flex flex-col items-center flex-1 min-w-0">
+                      <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-white border-2 border-gray-200 text-gray-300 flex items-center justify-center mb-1.5 md:mb-2"><CheckCircle2 size={10} className="md:w-3 md:h-3" /></div>
+                      <p className="text-[9px] md:text-[10px] font-medium text-gray-400 text-center leading-tight hidden sm:block whitespace-nowrap px-1">Delivered</p>
+                    </div>
+                  </div>
+               </div>
+            </div>
 
-              {/* Actions */}
-              <div className="w-full md:w-36 p-4 xl:p-5 md:border-l border-gray-100 flex flex-row md:flex-col gap-2 flex-shrink-0 bg-gray-50/50 md:bg-white">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0 md:mb-2 hidden md:block">Actions</p>
-                <button className="flex-1 w-full py-2 bg-white md:bg-gray-50 border border-gray-200 text-gray-700 rounded-md text-xs font-semibold hover:bg-gray-100 transition-colors flex items-center justify-center gap-2">
-                  <RefreshCcw size={12} /> Reassign
-                </button>
-                <button className="flex-1 w-full py-2 bg-white md:bg-red-50 border border-red-200 text-red-600 rounded-md text-xs font-semibold hover:bg-red-100 transition-colors flex items-center justify-center gap-2">
-                  <AlertTriangle size={12} /> Report Issue
-                </button>
+            {/* 3. Driver Info */}
+            <div className="w-full xl:w-56 p-3 xl:p-4 border-b xl:border-b-0 xl:border-r border-gray-100 flex flex-col justify-between flex-shrink-0">
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Driver</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm flex-shrink-0">KP</div>
+                  <div className="min-w-0">
+                    <h4 className="font-bold text-gray-900 text-sm leading-tight truncate">Kasun Perera</h4>
+                    <p className="text-[10px] text-gray-500 truncate">Van 023 · Toyota Hiace</p>
+                    <p className="text-[10px] font-semibold text-green-600 flex items-center gap-1 mt-0.5"><Phone size={10} /> +94 77 123 4567</p>
+                  </div>
+                </div>
               </div>
+              <div className="flex items-center justify-between gap-3 mt-3">
+                <button className="flex-1 bg-[#053D31] text-white py-1.5 px-2 rounded text-xs font-semibold hover:bg-[#042e25] transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap">
+                  <User size={12} /> Details
+                </button>
+                <p className="text-[10px] font-semibold text-gray-500 flex items-center gap-1 whitespace-nowrap"><Star size={12} className="text-yellow-400" fill="currentColor" /> 4.9 <span className="text-gray-300">|</span> 3.2 km</p>
+              </div>
+            </div>
 
+            {/* 4. Actions */}
+            <div className="w-full xl:w-32 p-3 xl:p-4 flex flex-row xl:flex-col gap-2 flex-shrink-0 bg-gray-50/50 xl:bg-white justify-center">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0 xl:mb-1 hidden xl:block">Actions</p>
+              <button className="flex-1 w-full py-2 px-2 bg-white xl:bg-gray-50 border border-gray-200 text-gray-700 rounded-md text-xs font-semibold hover:bg-gray-100 transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap">
+                <RefreshCcw size={12} /> Reassign
+              </button>
+              <button className="flex-1 w-full py-2 px-2 bg-white xl:bg-red-50 border border-red-200 text-red-600 rounded-md text-xs font-semibold hover:bg-red-100 transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap">
+                <AlertTriangle size={12} /> Report Issue
+              </button>
             </div>
 
           </div>

@@ -6,6 +6,7 @@ import { ordersApi } from "@/modules/store_manager/Orders/ordersApi";
 import { employeesApi } from "@/modules/store_manager/Employees/employeesApi";
 import { profileApi } from "@/modules/profile/api/profileApi";
 import { plansApi } from "@/modules/dispatcher/api/plansApi";
+import { fleetApi } from "@/modules/dispatcher/fleet/fleetApi";
 
 // When a session ends (logout, logout-all, refresh token rejected) wipe every RTK Query
 // cache, so the next person to sign in never sees the previous user's data.
@@ -19,6 +20,7 @@ sessionListener.startListening({
         dispatch(employeesApi.util.resetApiState());
         dispatch(profileApi.util.resetApiState());
         dispatch(plansApi.util.resetApiState());
+        dispatch(fleetApi.util.resetApiState());
     },
 });
 
@@ -31,6 +33,7 @@ export const store = configureStore({
         [employeesApi.reducerPath]: employeesApi.reducer,
         [profileApi.reducerPath]: profileApi.reducer,
         [plansApi.reducerPath]: plansApi.reducer,
+        [fleetApi.reducerPath]: fleetApi.reducer,
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware()
@@ -41,6 +44,7 @@ export const store = configureStore({
                 employeesApi.middleware,
                 profileApi.middleware,
                 plansApi.middleware
+                fleetApi.middleware,
             ),
 });
 

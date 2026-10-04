@@ -5,8 +5,7 @@ import { baseQueryWithReauth } from "@/services/baseQuery";
 //
 //   GET    /employees/pending        registered users awaiting approval
 //   GET    /employees                approved employees
-//   GET    /employees/outlets        active outlets, for the approval picker
-//   POST   /employees/:id/approve    { outletId } -> employee number + outlet assigned
+//   POST   /employees/:id/approve    approve a registration -> employee number assigned
 //   DELETE /employees/:id            reject a registration / remove an employee
 
 // The backend caps `limit` at 100 and has no text search, so the list endpoints are read
@@ -45,16 +44,10 @@ export const employeesApi = createApi({
             providesTags: [{ type: "Employees", id: "LIST" }],
         }),
 
-        getOutlets: builder.query({
-            query: () => ({ url: "/employees/outlets" }),
-            transformResponse: (response) => response?.data ?? [],
-        }),
-
         approveEmployee: builder.mutation({
-            query: ({ userId, outletId }) => ({
+            query: ({ userId }) => ({
                 url: `/employees/${encodeURIComponent(userId)}/approve`,
                 method: "POST",
-                body: { outletId },
             }),
             // the backend wraps the employee as { success, message, data } — hand callers the employee itself
             transformResponse: (response) => response?.data ?? null,
@@ -81,7 +74,6 @@ export const employeesApi = createApi({
 export const {
     useGetPendingEmployeesQuery,
     useGetEmployeesQuery,
-    useGetOutletsQuery,
     useApproveEmployeeMutation,
     useDeleteEmployeeMutation,
 } = employeesApi;

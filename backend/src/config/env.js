@@ -75,6 +75,10 @@ export const config = Object.freeze({
     // 15 * 60 * 1000 = 15 minutes
     passwordResetExpiryInMs: parseInteger(process.env.PASSWORD_RESET_EXPIRY_MS, 900000),
 
+    // How long a loader's claim on a loading task survives without any activity before
+    // another loader may take it over (every save by the holder extends it).
+    loadingLockTtlMs: parseInteger(process.env.LOADING_LOCK_TTL_MS, 15 * 60 * 1000),
+
     frontendUrl: (process.env.FRONTEND_URL ?? parseAllowedOrigins(process.env.ALLOWED_ORIGINS ?? "")[0] ?? "").replace(/\/$/, ""),
 
     smtpHost: process.env.SMTP_HOST ?? "",
