@@ -18,6 +18,24 @@ class DateFormatter {
     return '$hh:$mm $period';
   }
 
+  /// What "now" is for the relative formats below; tests replace it.
+  static DateTime Function() clock = DateTime.now;
+
+  /// A departure time: "06:15 AM" for today, "Tomorrow, 06:15 AM" for the next
+  /// day and "6 Oct, 06:15 AM" for any other day (the loader list also holds the
+  /// routes planned for the coming days). "--:--" when there is no time yet.
+  static String formatDeparture(DateTime? time, {DateTime? now}) {
+    if (time == null) return '--:--';
+    final today = (now ?? clock()).toUtc().add(_colomboOffset);
+    final day = time.toUtc().add(_colomboOffset);
+    final daysAway = DateTime.utc(day.year, day.month, day.day)
+        .difference(DateTime.utc(today.year, today.month, today.day))
+        .inDays;
+    if (daysAway == 0) return formatTime(time);
+    if (daysAway == 1) return 'Tomorrow, ${formatTime(time)}';
+    return formatDateTime(time);
+  }
+
   /// "4 Oct, 05:54 PM" in Colombo time, or an empty string when there is no time.
   static String formatDateTime(DateTime? time) {
     if (time == null) return '';

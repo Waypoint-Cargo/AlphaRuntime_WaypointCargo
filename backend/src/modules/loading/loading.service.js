@@ -14,6 +14,7 @@ import {
     findBusyVehicleSessionTx,
     findSessionStateTx,
     createSessionIfAbsentTx,
+    claimUnstartedSessionTx,
     resumePausedSessionTx,
     takeOverExpiredLockTx,
     refreshLockTx,
@@ -40,6 +41,7 @@ import {
     buildTaskModel,
     deriveLineStatus,
     isLockExpired,
+    isUnstartedSession,
     summarizeDay,
 } from "./loading.rules.js";
 import {
@@ -72,6 +74,13 @@ const todayInColombo = () => {
 // date-only columns are stored as UTC midnight
 const dayStart = (isoDate) => new Date(`${isoDate}T00:00:00.000Z`);
 
+// Which trips a request is about. An explicit date means exactly that day. Without one it is today AND every later day:
+// dispatchers plan (and publish) the next delivery day, so the load for tomorrow must already be there tonight.
+const poolScope = (date) => {
+    const today = todayInColombo();
+    return date ? { day: date, filter: { date: dayStart(date) } } : { day: today, filter: { from: dayStart(today) } };
+};
+
 const newLockExpiry = (now) => new Date(now.getTime() + LOCK_TTL_MS);
 
 const buildModel = (trip, userId, now = new Date()) =>
@@ -85,7 +94,7 @@ const staleStateError = () =>
 
 // Why this loader cannot act on the task right now - or null when they hold it and may.
 const explainUnavailable = (session, userId) => {
-    if (!session) {
+    if (!session || isUnstartedSession(session)) {
         return new AppError("Loading has not been started for this route.", 409, { code: "TASK_NOT_STARTED" });
     }
     switch (session.status) {
@@ -226,10 +235,10 @@ const recordAuditTx = (tx, { userId, action, sessionId, before, after, ip, reque
 
 export const getHomeSummaryService = async ({ userId, date }) => {
     const depotIds = await resolveDepotIds(userId);
-    const day = date ?? todayInColombo();
+    const { day, filter } = poolScope(date);
 
     const [trips, openIssues] = await Promise.all([
-        findTripsForDay({ depotIds, date: dayStart(day) }),
+        findTripsForDay({ depotIds, ...filter }),
         countOpenLoaderIssues({ depotIds }),
     ]);
 
@@ -247,11 +256,11 @@ export const listIssuesService = async ({ userId, tab, limit }) => {
 
 export const listTasksService = async ({ userId, tab, search, brand, date, page, limit }) => {
     const depotIds = await resolveDepotIds(userId);
-    const day = date ?? todayInColombo();
+    const { day, filter } = poolScope(date);
 
     const { items, total } = await findTasksPage({
         depotIds,
-        date: dayStart(day),
+        ...filter,
         tab,
         search,
         brand,
@@ -261,7 +270,7 @@ export const listTasksService = async ({ userId, tab, search, brand, date, page,
 
     const now = new Date();
     const models = items.map((trip) => buildModel(trip, userId, now));
-    return toTaskListResponseDTO({ models, total, page, limit, date: day, tab });
+    return toTaskListResponseDTO({ models, total, page, limit, date: day, tab, upcoming: !date });
 };
 
 const readTaskDetail = async ({ userId, tripId, depotIds }) => {
@@ -322,6 +331,12 @@ export const startTaskService = async ({ userId, tripId, ip, requestId }) => {
             // count 0: another loader created the session between our read and our insert
             if (created.count === 0) throw await failedClaimError(tx, tripId, userId);
             sessionId = (await findSessionStateTx(tx, tripId)).id;
+        } else if (isUnstartedSession(session)) {
+            // registered when the plan was published; this is its first claim
+            await assertVehicleFreeTx(tx, trip, now);
+            const claimed = await claimUnstartedSessionTx(tx, { sessionId: session.id, userId, lockExpiresAt, now });
+            if (claimed.count === 0) throw await failedClaimError(tx, tripId, userId);
+            sessionId = session.id;
         } else {
             sessionId = session.id;
             switch (session.status) {

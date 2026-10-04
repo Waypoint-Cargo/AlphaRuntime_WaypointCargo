@@ -76,6 +76,13 @@ DispatchPlan (PUBLISHED / IN_EXECUTION / COMPLETED, per depot + day)
 **No `LoadingSession` row = PENDING.** The row is created when a loader claims the task, so the
 planning module does not have to know about loading.
 
+**A session nobody has started is also PENDING.** Publishing a plan registers an empty session per trip
+(`planning.service` -> `createSessionWithChecksTx`: the trip's lines with their planned quantities). The column
+default makes it `IN_PROGRESS`, but it has no holder and no `startedAt`, so `isUnstartedSession` (loading.rules.js)
+treats it exactly like "no row": status `PENDING`, no lock, `canStart`. The first `start` claims that row
+(compare-and-set on `lockedById IS NULL AND startedAt IS NULL`) instead of inserting one; until then every other
+action answers `TASK_NOT_STARTED`.
+
 ### Migration `20261004090000_add_loading_lifecycle`
 
 Purely additive (applies to a live database with no table rewrite).
@@ -133,7 +140,7 @@ Audit actions: `LOADING_STARTED`, `LOADING_RESUMED`, `LOADING_LOCK_TAKEN_OVER`, 
 
 | State | Meaning | Lock | Who can act |
 |---|---|---|---|
-| `PENDING` | in the shared pool, no session row | – | any loader at the depot may `start` |
+| `PENDING` | in the shared pool: no session row, or one registered by publishing that nobody has started | – | any loader at the depot may `start` |
 | `IN_PROGRESS` | one loader is loading it | `lockedBy`, `lockExpiresAt` | the holder: save, pause, shortfall, complete. Others: only after the lock expired |
 | `PAUSED` | back in the pool, every saved quantity kept | – | any loader may `start` (resume) |
 | `ON_HOLD` | shortfall reported, waiting for the dispatcher | – | nobody on the loader side; `start` → 409 `TASK_ON_HOLD` |
@@ -257,7 +264,7 @@ Trips outside the loader's depot answer **404** `TASK_NOT_FOUND` (existence is n
 ### Home
 
 #### `GET /summary` — daily figures
-Query: `date` (`YYYY-MM-DD`, default today in Asia/Colombo).
+Query: `date` (`YYYY-MM-DD`; default: today in Asia/Colombo **and later days**, see section 10).
 
 ```json
 { "date": "2026-10-04", "pendingLoads": 9, "readyToDepart": 0, "openIssues": 0,
@@ -308,9 +315,9 @@ The dispatcher's side (investigate, resolve) has no endpoint yet; until it exist
 
 #### `GET /tasks` — the shared task pool
 Query: `tab` (`pending` default | `completed`), `search` (contains, route or vehicle code),
-`brand` (`FRESH|STYLE|TECH`), `date`, `page` (1), `limit` (20, max 100).
+`brand` (`FRESH|STYLE|TECH`), `date` (one day; default today and later), `page` (1), `limit` (20, max 100).
 Order: Pending by `plannedDeparture` ascending (nulls last), Completed by `completedAt` descending.
-Returns `data: [card]` and `meta: { page, limit, total, totalPages, date, tab }`.
+Returns `data: [card]` and `meta: { page, limit, total, totalPages, date, upcoming, tab }` (`date` = the requested day, or today; `upcoming` = no date was asked for, so later days are included).
 
 ```json
 { "tripId": "…", "sessionId": null, "routeCode": "R-T04", "tripNumber": 1, "deliveryDate": "2026-10-04",
@@ -469,8 +476,11 @@ completed it) · `TRIP_NOT_LOADABLE`.
 3. **Depot scope.** A loader sees the depots in `UserDepot`; nothing creates those rows for loaders
    today (the employee approval flow only assigns an outlet), so with no rows the **outlet's depot** is
    used. A loader with neither gets 403 `NO_DEPOT`.
-4. **"Today"** is the Asia/Colombo date; `?date=` selects another day (e.g. evening pre-loading for
-   tomorrow's early runs). `CalendarDay` is not consulted — a non-operating day simply has no
+4. **"Today"** is the Asia/Colombo date. Without `?date=`, Home and Tasks cover **today and every later day**:
+   dispatchers plan and publish the *next* delivery day, so tomorrow's routes must already be in the pool tonight
+   (`meta.upcoming: true`). `?date=` narrows to exactly that day, past days included. A route reaches the pool only
+   once its plan is **published** (`PUBLISHED`/`IN_EXECUTION`/`COMPLETED`): trips of a `DRAFT`/`CLOSED` plan can
+   still be reshuffled or unallocated by the dispatcher, so loaders never see them. `CalendarDay` is not consulted — a non-operating day simply has no
    published plan.
 5. **Priority** is derived (section 6); there is no stored priority.
 6. **"Temporarily cancelled" ≠ trip `CANCELLED`.** A shortfall puts the *session* `ON_HOLD` and leaves the
