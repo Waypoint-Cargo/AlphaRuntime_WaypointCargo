@@ -242,7 +242,7 @@ button.nav-item:disabled {
   grid-area: main;
   display: flex;
   gap: 16px;
-  padding: 16px 40px;
+  padding: 10px 12px 0 12px;
   align-items: flex-start;
   min-width: 0;
 }
@@ -250,6 +250,7 @@ button.nav-item:disabled {
 .main-col {
   flex: 1 1 auto;
   min-width: 0;
+  max-width: 1240px;
   display: flex;
   flex-direction: column;
 }
@@ -1698,4 +1699,141 @@ button.nav-item:disabled {
   color: var(--rose);
   font-size: 13px;
   line-height: 18px;
+}
+
+.store-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.store-header-row h1 {
+  margin: 0;
+}
+
+.store-header-row .subtitle {
+  padding-bottom: 0;
+}
+
+.add-employee-btn {
+  height: 40px !important;
+  padding: 0 18px !important;
+  border-radius: 10px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.04);
+}
+
+.emp-modal {
+  width: min(560px, calc(100vw - 32px));
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+
+.emp-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 24px 24px 18px 24px;
+}
+
+.emp-modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--firefly);
+}
+
+.emp-modal-header p {
+  margin-top: 6px;
+  color: var(--stone);
+  font-size: 13px;
+}
+
+.emp-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 0 24px 12px;
+}
+
+.emp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--firefly);
+}
+
+.emp-field input,
+.emp-field select {
+  width: 100%;
+  height: 40px;
+  border: 1px solid var(--porcelain);
+  border-radius: 8px;
+  background: #fff;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--mirage);
+}
+
+.emp-field input:focus,
+.emp-field select:focus {
+  outline: 2px solid rgba(242, 190, 50, 0.35);
+  border-color: var(--saffron);
+}
+
+.emp-select-wrap {
+  position: relative;
+}
+
+.emp-select-wrap select {
+  appearance: none;
+  padding-right: 40px;
+}
+
+.emp-select-wrap .select-caret {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--stone);
+}
+
+.emp-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px 22px;
+  border-top: 1px solid var(--porcelain);
+}
+
+.emp-submit-button {
+  min-width: 154px;
+  font-weight: 700 !important;
+}
+
+.emp-modal .x-btn {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--porcelain);
+  background: #fff;
+  color: var(--stone);
+  padding: 0;
+}
+
+.emp-modal .x-btn:hover {
+  background: var(--athens);
 }

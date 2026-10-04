@@ -22,6 +22,9 @@ import OrderPage from "./modules/store_manager/Orders/OrderPage";
 import CreateOrderPage from "./modules/store_manager/Orders/CreateOrderPage";
 import EmployeesPage from "./modules/store_manager/Employees/EmployeesPage";
 import StoreManagerProfile from "./modules/store_manager/Profile/StoreManagerProfile";
+import StoreManagerLayout from "./modules/store_manager/components/StoreManagerLayout";
+import DeliveryTrackingPage from "./modules/store_manager/pages/DeliveryTrackingPage";
+import ReportDeliveryIssuePage from "./modules/store_manager/pages/ReportDeliveryIssuePage";
 
 // The session itself is restored once, before the first render (see main.jsx);
 // the guards below wait for it, so nothing here needs to.
@@ -55,6 +58,8 @@ function App() {
                 <Route path="dashboard" element={<StoreManagerDashboard />} />
                 <Route path="orders" element={<OrderPage />} />
                 <Route path="orders/new" element={<CreateOrderPage />} />
+                <Route path="tracking" element={<StoreManagerLayout active="tracking"><DeliveryTrackingPage /></StoreManagerLayout>} />
+                <Route path="report-issue" element={<StoreManagerLayout active="issue"><ReportDeliveryIssuePage /></StoreManagerLayout>} />
                 <Route path="employees" element={<EmployeesPage />} />
                 <Route path="profile" element={<StoreManagerProfile />} />
             </Route>

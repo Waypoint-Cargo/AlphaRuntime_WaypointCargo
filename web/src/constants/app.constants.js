@@ -29,6 +29,8 @@ export const ROUTES = {
     STORE_MANAGER_DASHBOARD: "/store-manager/dashboard",
     STORE_MANAGER_ORDERS: "/store-manager/orders",
     STORE_MANAGER_CREATE_ORDER: "/store-manager/orders/new",
+    STORE_MANAGER_TRACKING: "/store-manager/tracking",
+    STORE_MANAGER_REPORT_ISSUE: "/store-manager/report-issue",
     STORE_MANAGER_EMPLOYEES: "/store-manager/employees",
     STORE_MANAGER_PROFILE: "/store-manager/profile",
 

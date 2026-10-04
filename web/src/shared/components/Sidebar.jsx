@@ -3,15 +3,15 @@ import { DashboardIcon, PlusCircleIcon, ClipboardIcon, PinIcon, AlertIcon, Users
 import { ROUTES } from "@/constants/app.constants";
 import { useLogout } from "@/modules/auth/hooks/useLogout";
 
-// `to` = real route. Items without one are not built yet and stay as "#id" placeholders.
+// `to` = real route. Items without one are not built yet and stay as placeholder links.
 const MAIN = [
   { id: "dashboard", label: "Dashboard", Icon: DashboardIcon, to: ROUTES.STORE_MANAGER_DASHBOARD },
   { id: "create", label: "Create Order", Icon: PlusCircleIcon, to: ROUTES.STORE_MANAGER_CREATE_ORDER },
   { id: "orders", label: "Orders", Icon: ClipboardIcon, to: ROUTES.STORE_MANAGER_ORDERS },
-  { id: "tracking", label: "Delivery Tracking", Icon: PinIcon },
+  { id: "tracking", label: "Delivery Tracking", Icon: PinIcon, to: ROUTES.STORE_MANAGER_TRACKING },
 ];
 const SUPPORT = [
-  { id: "issue", label: "Report Delivery Issue", Icon: AlertIcon },
+  { id: "issue", label: "Report Delivery Issue", Icon: AlertIcon, to: ROUTES.STORE_MANAGER_REPORT_ISSUE },
   { id: "employees", label: "Manage Employees", Icon: UsersIcon, to: ROUTES.STORE_MANAGER_EMPLOYEES },
 ];
 

@@ -33,8 +33,8 @@ export default function TodaysDeliveries({ deliveries }) {
                     </thead>
                     <tbody>
                         {deliveries.map((d) => {
-                            const type = DELIVERY_TYPES[d.type];
-                            const status = STATUSES[d.status];
+                            const type = DELIVERY_TYPES[d.type] ?? { tone: "muted", icon: null, label: d.type || "Unknown" };
+                            const status = STATUSES[d.status] ?? { tone: "muted", label: d.status || "Unknown" };
                             return (
                                 <tr key={d.id} className="border-b border-divider last:border-0 hover:bg-screen">
                                     <td className="px-4 py-4 font-semibold text-forest">{d.id}</td>

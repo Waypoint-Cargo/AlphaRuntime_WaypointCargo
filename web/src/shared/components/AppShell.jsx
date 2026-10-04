@@ -21,19 +21,27 @@ function NavItem({ to, icon: Icon, label, end, onClick }) {
 }
 
 export default function AppShell({ nav = [], support = [], settingsPath, user, children }) {
-    const [open, setOpen] = useState(false); // is the sidebar open on phones?
+    const [open, setOpen] = useState(false);
     const navigate = useNavigate();
     const close = () => setOpen(false);
 
     const handleLogout = () => {
-        // TODO: clear the saved login here later
         navigate("/login");
     };
 
     return (
-        <div className="flex min-h-screen flex-col bg-screen">
-            {/* Top bar */}
-            <header className="flex h-16 items-center justify-between border-b border-white/10 bg-forest px-4 text-white lg:px-6">
+        <div
+            className="grid min-h-screen bg-screen"
+            style={{
+                gridTemplateColumns: "260px minmax(0, 1fr)",
+                gridTemplateRows: "72px minmax(0, 1fr)",
+                gridTemplateAreas: '"top top" "side main"',
+            }}
+        >
+            <header
+                className="flex items-center justify-between border-b border-white/10 bg-forest px-4 text-white lg:px-6"
+                style={{ gridArea: "top" }}
+            >
                 <div className="flex items-center gap-3">
                     <button
                         type="button"
@@ -66,62 +74,60 @@ export default function AppShell({ nav = [], support = [], settingsPath, user, c
                 </div>
             </header>
 
-            <div className="flex flex-1">
-                {/* Dark overlay behind the sidebar on phones */}
-                {open && <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={close} />}
+            {open && <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={close} />}
 
-                {/* Sidebar */}
-                <aside
-                    className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col justify-between bg-forest p-4 transition-transform lg:static lg:translate-x-0 ${
-                        open ? "translate-x-0" : "-translate-x-full"
-                    }`}
-                >
-                    <div>
-                        <button
-                            type="button"
-                            onClick={close}
-                            aria-label="Close menu"
-                            className="mb-2 ml-auto block text-white lg:hidden"
-                        >
-                            <X className="size-6" />
-                        </button>
+            <aside
+                className={`flex w-[260px] shrink-0 flex-col justify-between bg-forest p-4 transition-transform lg:static lg:translate-x-0 ${
+                    open ? "translate-x-0" : "-translate-x-full"
+                }`}
+                style={{ gridArea: "side" }}
+            >
+                <div>
+                    <button
+                        type="button"
+                        onClick={close}
+                        aria-label="Close menu"
+                        className="mb-2 ml-auto block text-white lg:hidden"
+                    >
+                        <X className="size-6" />
+                    </button>
 
-                        <nav className="space-y-2">
-                            {nav.map((item) => (
-                                <NavItem key={item.to} {...item} onClick={close} />
-                            ))}
-                        </nav>
+                    <nav className="space-y-2">
+                        {nav.map((item) => (
+                            <NavItem key={item.to} {...item} onClick={close} />
+                        ))}
+                    </nav>
 
-                        {support.length > 0 && (
-                            <>
-                                <p className="mb-2 mt-8 px-4 text-xs font-semibold tracking-widest text-white/50">
-                                    SUPPORT
-                                </p>
-                                <nav className="space-y-2">
-                                    {support.map((item) => (
-                                        <NavItem key={item.to} {...item} onClick={close} />
-                                    ))}
-                                </nav>
-                            </>
-                        )}
-                    </div>
+                    {support.length > 0 && (
+                        <>
+                            <p className="mb-2 mt-8 px-4 text-xs font-semibold tracking-widest text-white/50">
+                                SUPPORT
+                            </p>
+                            <nav className="space-y-2">
+                                {support.map((item) => (
+                                    <NavItem key={item.to} {...item} onClick={close} />
+                                ))}
+                            </nav>
+                        </>
+                    )}
+                </div>
 
-                    <div className="space-y-1">
-                        <NavItem to={settingsPath} icon={Settings} label="Setting" onClick={close} />
-                        <button
-                            type="button"
-                            onClick={handleLogout}
-                            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium text-white/90 transition hover:bg-white/10"
-                        >
-                            <LogOut className="size-5" />
-                            Log Out
-                        </button>
-                    </div>
-                </aside>
+                <div className="space-y-1">
+                    <NavItem to={settingsPath} icon={Settings} label="Setting" onClick={close} />
+                    <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium text-white/90 transition hover:bg-white/10"
+                    >
+                        <LogOut className="size-5" />
+                        Log Out
+                    </button>
+                </div>
+            </aside>
 
-                {/* Page content goes here */}
-                <main className="min-w-0 flex-1 p-5 lg:p-8">{children}</main>
-            </div>
+            <main className="min-h-0 w-full overflow-hidden" style={{ gridArea: "main" }}>
+                <div className="h-full w-full max-w-[1480px] mx-auto p-3 lg:p-5">{children}</div>
+            </main>
         </div>
     );
 }
