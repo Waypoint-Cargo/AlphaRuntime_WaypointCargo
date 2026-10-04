@@ -3,7 +3,7 @@ import '../../../../core/constants/role_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_style.dart';
-import '../../../../core/widgets/app_scaffold.dart';
+import '/widgets/app_scaffold.dart';
 
 class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({super.key});
