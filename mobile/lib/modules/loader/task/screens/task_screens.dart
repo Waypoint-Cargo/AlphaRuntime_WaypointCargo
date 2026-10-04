@@ -4,7 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_style.dart';
 import '../../../../core/widgets/section_header.dart';
-import '../../../../core/widgets/app_scaffold.dart';
+import '../../../../widgets/app_scaffold.dart';
 import '../../home/screens/loader_home_screen.dart';
 import '../../report_issues/screens/issue_details_screen.dart';
 import 'start_loading_screen.dart';

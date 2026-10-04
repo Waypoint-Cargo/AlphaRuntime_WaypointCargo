@@ -3,7 +3,7 @@ import '../modules/loader/home/screens/loader_home_screen.dart';
 import '../modules/loader/report_issues/screens/issue_details_screen.dart';
 import '../modules/loader/report_issues/screens/report_issue_screen.dart';
 import '../modules/loader/task/screens/start_loading_screen.dart';
-import '../modules/loader/task/screens/task_details.dart';
+import '../modules/loader/task/screens/task_details_screen.dart';
 import '../modules/loader/task/screens/task_screens.dart';
 import '../modules/loader/task/screens/verify_loading_screen.dart';
 

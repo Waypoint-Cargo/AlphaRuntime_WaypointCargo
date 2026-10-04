@@ -5,7 +5,7 @@ import '../../../../core/theme/app_text_style.dart';
 import '../../../../core/widgets/inner_section_header.dart';
 import '../widgets/loading_item_card.dart';
 import '../widgets/task_card.dart';
-import 'task_details.dart';
+import 'task_details_screen.dart';
 import 'task_screens.dart';
 
 class VerifyLoadingScreen extends StatefulWidget {

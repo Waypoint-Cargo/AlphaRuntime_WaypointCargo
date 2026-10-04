@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/role_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_style.dart';
-import '../../../../core/widgets/app_scaffold.dart';
+import '../../../../widgets/app_scaffold.dart';
 import '../../report_issues/screens/issue_details_screen.dart';
 import '../../task/screens/task_screens.dart';
 import '../widgets/quick_action.dart';
