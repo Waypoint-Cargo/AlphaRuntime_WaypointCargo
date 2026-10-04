@@ -26,3 +26,6 @@ coverage/
 Thumbs.db
 
 /src/generated/prisma
+
+# Uploaded images (local file storage)
+uploads/

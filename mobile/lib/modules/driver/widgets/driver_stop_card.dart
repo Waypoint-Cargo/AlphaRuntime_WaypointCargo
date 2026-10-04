@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_style.dart';
-import '../../../models/driver_stop.dart';
+import '../../../models/driver_task.dart';
 
 class DriverStopCard extends StatelessWidget {
-  final DriverStop stop;
+  final DriverTaskStop stop;
+
+  /// The stop the driver goes to next (highlighted).
+  final bool isCurrent;
   final VoidCallback onTap;
 
   const DriverStopCard({
     super.key,
     required this.stop,
     required this.onTap,
+    this.isCurrent = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isCurrent = stop.status == DriverStopStatus.current;
-    final isCompleted = stop.status == DriverStopStatus.completed;
+    final isCompleted = stop.isDone;
 
     return InkWell(
       onTap: onTap,
@@ -77,12 +80,12 @@ class DriverStopCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    stop.outlet,
+                    stop.outlet.name,
                     style: AppTextStyles.heading3,
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    stop.location,
+                    stop.outlet.district,
                     style: AppTextStyles.bodySmall,
                   ),
                   const SizedBox(height: 6),
@@ -95,7 +98,7 @@ class DriverStopCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        stop.deliveryWindow,
+                        stop.outlet.windowLabel,
                         style: AppTextStyles.labelSmall,
                       ),
                     ],
@@ -122,23 +125,38 @@ class DriverStopCard extends StatelessWidget {
     Color foreground;
 
     switch (stop.status) {
-      case DriverStopStatus.completed:
+      case 'COMPLETED':
         text = 'Completed';
         background = AppColors.successLight;
         foreground = AppColors.success;
         break;
 
-      case DriverStopStatus.current:
-        text = 'Current';
+      case 'PARTIAL':
+        text = 'Partial';
+        background = AppColors.successLight;
+        foreground = AppColors.success;
+        break;
+
+      case 'FAILED':
+      case 'SKIPPED':
+        text = stop.status == 'FAILED' ? 'Failed' : 'Skipped';
+        background = AppColors.errorLight;
+        foreground = AppColors.error;
+        break;
+
+      case 'ARRIVED':
+      case 'UNLOADING':
+        text = stop.status == 'ARRIVED' ? 'Arrived' : 'Unloading';
         background = AppColors.greenSurface;
         foreground = AppColors.deepForestGreen;
         break;
 
-      case DriverStopStatus.upcoming:
-        text = 'Upcoming';
-        background = AppColors.screenBackground;
-        foreground = AppColors.secondaryText;
-        break;
+      default:
+        text = isCurrent ? 'Next' : 'Upcoming';
+        background =
+            isCurrent ? AppColors.greenSurface : AppColors.screenBackground;
+        foreground =
+            isCurrent ? AppColors.deepForestGreen : AppColors.secondaryText;
     }
 
     return Container(

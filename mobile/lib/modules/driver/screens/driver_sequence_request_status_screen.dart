@@ -1,76 +1,91 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_style.dart';
+import '../../../core/utils/date_formatter.dart';
+import '../../../core/widgets/app_error_state.dart';
+import '../../../core/widgets/app_loading_state.dart';
+import '../../../models/driver_task.dart';
+import '../../../providers/driver_provider.dart';
 
-class DriverSequenceRequestStatusScreen
-    extends StatelessWidget {
-  const DriverSequenceRequestStatusScreen({
-    super.key,
-  });
+/// The stop-order requests made for the trip and what the dispatcher decided.
+class DriverSequenceRequestStatusScreen extends StatefulWidget {
+  final String tripId;
+
+  const DriverSequenceRequestStatusScreen({super.key, required this.tripId});
+
+  @override
+  State<DriverSequenceRequestStatusScreen> createState() =>
+      _DriverSequenceRequestStatusScreenState();
+}
+
+class _DriverSequenceRequestStatusScreenState
+    extends State<DriverSequenceRequestStatusScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<DriverProvider>().loadSequenceRequests(widget.tripId);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final requests = [
-      (
-        reason: 'Outlet access issue',
-        details:
-            'Requested Ja-Ela before Wattala due to outlet access restriction.',
-        date: 'Today, 10:20 AM',
-        status: 'Pending',
-      ),
-      (
-        reason: 'Traffic / road restriction',
-        details:
-            'Requested route sequence change due to road closure.',
-        date: 'Yesterday, 02:15 PM',
-        status: 'Approved',
-      ),
-      (
-        reason: 'Customer request',
-        details:
-            'Customer requested an earlier delivery sequence.',
-        date: 'Yesterday, 09:40 AM',
-        status: 'Rejected',
-      ),
-    ];
+    final driver = context.watch<DriverProvider>();
+    final requests = driver.sequenceRequests;
+
+    Widget body;
+    if (requests.isEmpty && driver.isSequenceLoading) {
+      body = const AppLoadingState(message: 'Loading requests...');
+    } else if (requests.isEmpty && driver.sequenceError != null) {
+      body = AppErrorState(
+        title: "Couldn't load requests",
+        message: driver.sequenceError!,
+        actionLabel: 'Try again',
+        onAction: () => driver.loadSequenceRequests(widget.tripId),
+      );
+    } else if (requests.isEmpty) {
+      body = const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'You have not asked for a stop change on this trip.',
+            style: AppTextStyles.bodySmall,
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    } else {
+      body = RefreshIndicator(
+        color: AppColors.deepForestGreen,
+        onRefresh: () => driver.loadSequenceRequests(widget.tripId),
+        child: ListView.separated(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
+          itemCount: requests.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 10),
+          itemBuilder: (context, index) => _requestCard(requests[index]),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
-      appBar: AppBar(
-        title: const Text('Sequence Requests'),
-      ),
-      body: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(
-          16,
-          18,
-          16,
-          28,
-        ),
-        itemCount: requests.length,
-        separatorBuilder: (context, index) =>
-            const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          final request = requests[index];
-
-          return _requestCard(
-            reason: request.reason,
-            details: request.details,
-            date: request.date,
-            status: request.status,
-          );
-        },
-      ),
+      appBar: AppBar(title: const Text('Sequence Requests')),
+      body: body,
     );
   }
 
-  Widget _requestCard({
-    required String reason,
-    required String details,
-    required String date,
-    required String status,
-  }) {
-    final isPending = status == 'Pending';
-    final isApproved = status == 'Approved';
+  Widget _requestCard(SequenceRequest request) {
+    final isPending = request.status == 'PENDING';
+    final isApproved = request.status == 'APPROVED';
+    final label = isApproved
+        ? 'Approved'
+        : isPending
+            ? 'Pending'
+            : 'Rejected';
 
     final Color statusColor = isApproved
         ? AppColors.success
@@ -91,29 +106,24 @@ class DriverSequenceRequestStatusScreen
         borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Expanded(
                 child: Text(
-                  reason,
+                  'Stop order change',
                   style: AppTextStyles.heading3,
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 9,
-                  vertical: 5,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(
                   color: statusBackground,
-                  borderRadius:
-                      BorderRadius.circular(7),
+                  borderRadius: BorderRadius.circular(7),
                 ),
                 child: Text(
-                  status,
+                  label,
                   style: TextStyle(
                     color: statusColor,
                     fontSize: 11,
@@ -123,16 +133,12 @@ class DriverSequenceRequestStatusScreen
               ),
             ],
           ),
-
           const SizedBox(height: 8),
-
           Text(
-            details,
+            request.reason.isEmpty ? 'No reason given' : request.reason,
             style: AppTextStyles.bodySmall,
           ),
-
           const SizedBox(height: 12),
-
           Row(
             children: [
               const Icon(
@@ -142,7 +148,7 @@ class DriverSequenceRequestStatusScreen
               ),
               const SizedBox(width: 5),
               Text(
-                date,
+                DateFormatter.formatDateTime(request.createdAt),
                 style: AppTextStyles.labelSmall,
               ),
             ],

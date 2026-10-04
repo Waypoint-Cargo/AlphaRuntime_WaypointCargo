@@ -9,6 +9,9 @@ class DriverRouteSummaryCard extends StatelessWidget {
   final int completedStops;
   final String eta;
 
+  /// A short status such as 'In transit'; no badge when null.
+  final String? statusLabel;
+
   const DriverRouteSummaryCard({
     super.key,
     required this.routeId,
@@ -16,6 +19,7 @@ class DriverRouteSummaryCard extends StatelessWidget {
     required this.totalStops,
     required this.completedStops,
     required this.eta,
+    this.statusLabel,
   });
 
   @override
@@ -75,6 +79,7 @@ class DriverRouteSummaryCard extends StatelessWidget {
                 eta,
                 style: AppTextStyles.heading3,
               ),
+              if (statusLabel != null) ...[
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -85,11 +90,12 @@ class DriverRouteSummaryCard extends StatelessWidget {
                   color: AppColors.successLight,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text(
-                  'On schedule',
+                child: Text(
+                  statusLabel!,
                   style: AppTextStyles.statusSuccess,
                 ),
               ),
+              ],
             ],
           ),
         ],

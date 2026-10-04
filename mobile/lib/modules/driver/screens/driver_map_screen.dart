@@ -1,79 +1,123 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_style.dart';
-import '../../../models/driver_stop.dart';
-import '../../driver/widgets/map_placeholder.dart';
+import '../../../core/services/driver_service.dart';
+import '../../../core/utils/date_formatter.dart';
+import '../../../providers/driver_provider.dart';
+import '../widgets/driver_feedback.dart';
+import '../widgets/map_placeholder.dart';
 import 'driver_delivery_screen.dart';
 
-class DriverMapScreen extends StatelessWidget {
-  final DriverStop stop;
+/// Heading to a stop. "I've Arrived" tells the server and opens the delivery.
+class DriverMapScreen extends StatefulWidget {
+  final String tripId;
+  final String stopId;
+
+  /// Only look at the route: no arrival button.
+  final bool viewOnly;
 
   const DriverMapScreen({
     super.key,
-    required this.stop,
+    required this.tripId,
+    required this.stopId,
+    this.viewOnly = false,
   });
 
   @override
+  State<DriverMapScreen> createState() => _DriverMapScreenState();
+}
+
+class _DriverMapScreenState extends State<DriverMapScreen> {
+  bool _arriving = false;
+
+  Future<void> _arrived() async {
+    if (_arriving) return;
+    final driver = context.read<DriverProvider>();
+    final stop = driver.taskById(widget.tripId)?.stopById(widget.stopId);
+    if (stop == null) return;
+
+    if (stop.isPending) {
+      setState(() => _arriving = true);
+      final ok = await driver.recordStopEvent(stop.id, StopEventType.arrived);
+      if (!mounted) return;
+      setState(() => _arriving = false);
+      if (!ok) {
+        showDriverError(context, driver.actionError ?? 'Could not record the arrival.');
+        return;
+      }
+    }
+
+    // The map is only a stepping stone: the delivery replaces it.
+    await Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            DriverDeliveryScreen(tripId: widget.tripId, stopId: widget.stopId),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final driver = context.watch<DriverProvider>();
+    final task = driver.taskById(widget.tripId);
+    final stop = task?.stopById(widget.stopId);
+
+    if (task == null || stop == null) {
+      return Scaffold(
+        backgroundColor: AppColors.screenBackground,
+        appBar: AppBar(title: const Text('Route')),
+        body: const Center(child: Text('This stop is no longer available.')),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.screenBackground,
-      appBar: AppBar(
-        title: const Text('Route'),
-      ),
+      appBar: AppBar(title: const Text('Route')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Navigate to',
-              style: AppTextStyles.heading2,
-            ),
+            const Text('Navigate to', style: AppTextStyles.heading2),
             const SizedBox(height: 4),
-            Text(
-              stop.outlet,
-              style: AppTextStyles.bodySmall,
-            ),
-
+            Text(stop.outlet.name, style: AppTextStyles.bodySmall),
             const SizedBox(height: 14),
-
             DriverMapPlaceholder(
-              destination: stop.outlet,
-              eta: stop.eta,
-              distance: stop.distance,
+              destination: stop.outlet.name,
+              eta: DateFormatter.formatTime(stop.predictedArrival),
+              distance: '${stop.sequence} of ${task.stops.length}',
+              distanceLabel: 'Stop',
             ),
-
             const SizedBox(height: 16),
-
-            _destinationCard(),
-
-            const SizedBox(height: 18),
-
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => DriverDeliveryScreen(
-                        stop: stop,
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.location_on_outlined),
-                label: const Text("I've Arrived"),
+            _destinationCard(stop.outlet.name, stop.outlet.address,
+                stop.outlet.district, stop.outlet.windowLabel),
+            if (!widget.viewOnly) ...[
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _arriving ? null : _arrived,
+                  icon: _arriving
+                      ? const ButtonSpinner()
+                      : const Icon(Icons.location_on_outlined),
+                  label: const Text("I've Arrived"),
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _destinationCard() {
+  Widget _destinationCard(
+    String name,
+    String address,
+    String district,
+    String window,
+  ) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(15),
@@ -93,18 +137,15 @@ class DriverMapScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  stop.outlet,
-                  style: AppTextStyles.heading3,
-                ),
+                Text(name, style: AppTextStyles.heading3),
                 const SizedBox(height: 4),
                 Text(
-                  stop.address,
+                  address.isEmpty ? district : address,
                   style: AppTextStyles.bodySmall,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Delivery window: ${stop.deliveryWindow}',
+                  'Delivery window: $window',
                   style: AppTextStyles.labelMedium,
                 ),
               ],

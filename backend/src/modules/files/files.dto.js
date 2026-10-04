@@ -1,1 +1,8 @@
-// Defines Data Transfer Objects to format file metadata, storage URLs, and signed access links for clients.
+export const fileDTO = (f) => ({
+  id: f.id,
+  kind: f.kind,
+  mimeType: f.mimeType,
+  sizeBytes: f.sizeBytes,
+  clientFileId: f.clientFileId,
+  createdAt: f.createdAt,
+});
