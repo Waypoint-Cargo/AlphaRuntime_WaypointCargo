@@ -5,10 +5,11 @@ export const toOrderListDTO = (order) => ({
 	id: order.id,
 	reference: order.reference,
 	outletId: order.outletId,
-	outletName: order.outlet?.name ?? order.outletId,
-	city: order.outlet?.district ?? null,
+	outletName: order.outlet?.name ?? order.Outlet?.name ?? order.outletId,
+	city: order.outlet?.district ?? order.Outlet?.district ?? null,
+	destination: order.outlet?.district ?? order.outlet?.name ?? "Colombo",
 	depotId: order.depotId,
-	depotName: order.depot?.name ?? order.depotId,
+	depotName: order.depot?.name ?? order.Depot?.name ?? order.depotId,
 	brand: order.brand,
 	tempClass: order.tempClass,
 	requestedDeliveryDate: dateOnly(order.requestedDeliveryDate),
@@ -37,10 +38,15 @@ export const toOrderListDTO = (order) => ({
 		volumeM3: decimalToNumber(item.volumeM3),
 		notes: item.notes,
 	})),
-	driver: order.allocation?.stop?.trip?.driver
-		? { id: order.allocation.stop.trip.driver.id, name: order.allocation.stop.trip.driver.fullName, phone: order.allocation.stop.trip.driver.phone, employeeNumber: order.allocation.stop.trip.driver.employeeNumber }
+	driver: (order.allocation?.stop?.trip?.driver ?? order.Allocation?.Stop?.Trip?.User)
+		? {
+			id: (order.allocation?.stop?.trip?.driver ?? order.Allocation?.Stop?.Trip?.User).id,
+			name: (order.allocation?.stop?.trip?.driver ?? order.Allocation?.Stop?.Trip?.User).fullName,
+			phone: (order.allocation?.stop?.trip?.driver ?? order.Allocation?.Stop?.Trip?.User).phone,
+			employeeNumber: (order.allocation?.stop?.trip?.driver ?? order.Allocation?.Stop?.Trip?.User).employeeNumber,
+		}
 		: null,
-	tripCode: order.allocation?.stop?.trip?.code ?? null,
+	tripCode: order.allocation?.stop?.trip?.code ?? order.Allocation?.Stop?.Trip?.code ?? null,
 	createdAt: order.createdAt,
 	submittedAt: order.submittedAt,
 	confirmedAt: order.confirmedAt,

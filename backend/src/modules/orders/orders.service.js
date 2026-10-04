@@ -144,7 +144,7 @@ export const confirmOrder = async ({ actor, id }) => {
 export const cancelOrder = async ({ actor, id, reason }) => {
 	const existing = await findOrderById(id, { ...(await getScope(actor)), userId: actor.id });
 	if (!existing) throw new AppError("Order not found.", 404, { code: "NOT_FOUND" });
-	if (!["DRAFT", "PENDING_REVIEW", "CONFIRMED"].includes(existing.status)) throw new AppError("This order cannot be cancelled.", 409, { code: "INVALID_STATUS_TRANSITION" });
+	if (!["DRAFT", "PENDING_REVIEW", "CONFIRMED", "DEFERRED"].includes(existing.status)) throw new AppError("This order cannot be cancelled.", 409, { code: "INVALID_STATUS_TRANSITION" });
 	const order = await getPrisma().$transaction(async (tx) => {
 		await updateOrderSubmissionTx(tx, id, { cancelledAt: new Date() });
 		// Confirmed orders hold a stock reservation; give it back.
