@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../modules/auth/screens/forgot_password_screen.dart';
+import '../modules/auth/screens/login_screen.dart';
+import '../modules/auth/screens/sign_up_screen.dart';
 import '../modules/loader/home/screens/loader_home_screen.dart';
 import '../modules/loader/report_issues/screens/issue_details_screen.dart';
 import '../modules/loader/report_issues/screens/report_issue_screen.dart';
@@ -36,5 +39,8 @@ class AppRoutes {
         reportShortfall: (context) => const ReportLoadingIssueScreen(),
         issueDetails: (context) => const IssueDetailsScreen(),
         reportedIssues: (context) => const IssueDetailsScreen(),
+        login: (context) => const LoginScreen(),
+        signUp: (context) => const SignUpScreen(),
+        forgotPassword: (context) => const ForgotPasswordScreen(),
       };
 }

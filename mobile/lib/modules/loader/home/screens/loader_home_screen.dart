@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../../core/constants/role_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_style.dart';
+import '../../../../providers/auth_provider.dart';
+import '../../../../routes/app_routes.dart';
 import '../../../../widgets/app_scaffold.dart';
 import '../../report_issues/screens/issue_details_screen.dart';
 import '../../task/screens/task_screens.dart';
@@ -18,6 +21,24 @@ class LoaderHomeScreen extends StatefulWidget {
 
 class _LoaderHomeScreenState extends State<LoaderHomeScreen> {
   int currentIndex = 0;
+  bool _isLoggingOut = false;
+
+  Future<void> _logout() async {
+    if (_isLoggingOut) return;
+
+    setState(() {
+      _isLoggingOut = true;
+    });
+
+    await context.read<AuthProvider>().logout();
+
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRoutes.login,
+      (route) => false,
+    );
+  }
 
   void _onNavTap(int index) {
     if (index == 1) {
@@ -83,9 +104,7 @@ class _LoaderHomeScreenState extends State<LoaderHomeScreen> {
             const SnackBar(content: Text('Profile selected')),
           );
         } else if (value == 'logout') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Logout selected')),
-          );
+          _logout();
         }
       },
       body: _navigationBody(),
