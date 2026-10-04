@@ -43,8 +43,7 @@ export const store = configureStore({
                 ordersApi.middleware,
                 employeesApi.middleware,
                 profileApi.middleware,
-                plansApi.middleware
+                plansApi.middleware,
                 fleetApi.middleware,
             ),
 });
-
