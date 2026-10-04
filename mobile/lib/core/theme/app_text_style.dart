@@ -4,10 +4,7 @@ import 'app_colors.dart';
 class AppTextStyles {
   AppTextStyles._();
 
-  // ============================================================
-  // HEADINGS
-  // ============================================================
-
+  // Headings
   static const TextStyle display = TextStyle(
     fontSize: 28,
     fontWeight: FontWeight.w700,
@@ -32,10 +29,7 @@ class AppTextStyles {
     color: AppColors.primaryText,
   );
 
-  // ============================================================
-  // BODY
-  // ============================================================
-
+  // Body text styles
   static const TextStyle bodyLarge = TextStyle(
     fontSize: 16,
     fontWeight: FontWeight.w400,
@@ -54,10 +48,7 @@ class AppTextStyles {
     color: AppColors.secondaryText,
   );
 
-  // ============================================================
-  // LABELS
-  // ============================================================
-
+  // Label text styles for buttons, tags, and other small UI elements
   static const TextStyle labelLarge = TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.w600,
@@ -76,10 +67,7 @@ class AppTextStyles {
     color: AppColors.secondaryText,
   );
 
-  // ============================================================
-  // NAVIGATION
-  // ============================================================
-
+  // Navigation bar and tab label styles for active and inactive states
   static const TextStyle navLabel = TextStyle(
     fontSize: 11,
     fontWeight: FontWeight.w500,
@@ -92,10 +80,7 @@ class AppTextStyles {
     color: AppColors.deepForestGreen,
   );
 
-  // ============================================================
-  // BUTTONS
-  // ============================================================
-
+  // Button text styles for primary and secondary buttons
   static const TextStyle button = TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.w700,
@@ -108,10 +93,7 @@ class AppTextStyles {
     color: AppColors.white,
   );
 
-  // ============================================================
-  // STATUS
-  // ============================================================
-
+  // Status text styles
   static const TextStyle statusSuccess = TextStyle(
     fontSize: 11,
     fontWeight: FontWeight.w600,

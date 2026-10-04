@@ -9,10 +9,7 @@ class AppTheme {
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
 
-    // ==========================================================
-    // COLORS
-    // ==========================================================
-
+// Colors
     colorScheme: ColorScheme.fromSeed(
       seedColor: AppColors.deepForestGreen,
       brightness: Brightness.light,
@@ -32,10 +29,7 @@ class AppTheme {
 
     scaffoldBackgroundColor: AppColors.screenBackground,
 
-    // ==========================================================
-    // APP BAR
-    // ==========================================================
-
+// AppBarTheme
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.deepForestGreen,
       foregroundColor: AppColors.white,
@@ -49,10 +43,7 @@ class AppTheme {
       ),
     ),
 
-    // ==========================================================
-    // CARD
-    // ==========================================================
-
+// CardTheme
     cardTheme: CardThemeData(
       color: AppColors.cardBackground,
       elevation: 0,
@@ -65,10 +56,7 @@ class AppTheme {
       ),
     ),
 
-    // ==========================================================
-    // ELEVATED BUTTON
-    // ==========================================================
-
+// ElevatedButtonThemeData 
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.gold,
@@ -87,10 +75,7 @@ class AppTheme {
       ),
     ),
 
-    // ==========================================================
-    // INPUT
-    // ==========================================================
-
+// InputDecorationTheme
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppColors.white,
@@ -138,20 +123,14 @@ class AppTheme {
       ),
     ),
 
-    // ==========================================================
-    // DIVIDER
-    // ==========================================================
-
+// DividerThemeData
     dividerTheme: const DividerThemeData(
       color: AppColors.divider,
       thickness: 1,
       space: 1,
     ),
 
-    // ==========================================================
-    // TEXT
-    // ==========================================================
-
+// TextTheme
     textTheme: const TextTheme(
       headlineLarge: AppTextStyles.display,
       headlineMedium: AppTextStyles.heading1,
