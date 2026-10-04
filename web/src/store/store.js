@@ -5,6 +5,7 @@ import { authApi } from "@/modules/auth/api/authApi";
 import { ordersApi } from "@/modules/store_manager/Orders/ordersApi";
 import { employeesApi } from "@/modules/store_manager/Employees/employeesApi";
 import { profileApi } from "@/modules/profile/api/profileApi";
+import { plansApi } from "@/modules/dispatcher/api/plansApi";
 import { fleetApi } from "@/modules/dispatcher/fleet/fleetApi";
 
 // When a session ends (logout, logout-all, refresh token rejected) wipe every RTK Query
@@ -18,6 +19,7 @@ sessionListener.startListening({
         dispatch(ordersApi.util.resetApiState());
         dispatch(employeesApi.util.resetApiState());
         dispatch(profileApi.util.resetApiState());
+        dispatch(plansApi.util.resetApiState());
         dispatch(fleetApi.util.resetApiState());
     },
 });
@@ -30,6 +32,7 @@ export const store = configureStore({
         [ordersApi.reducerPath]: ordersApi.reducer,
         [employeesApi.reducerPath]: employeesApi.reducer,
         [profileApi.reducerPath]: profileApi.reducer,
+        [plansApi.reducerPath]: plansApi.reducer,
         [fleetApi.reducerPath]: fleetApi.reducer,
     },
     middleware: (getDefaultMiddleware) =>
@@ -40,6 +43,7 @@ export const store = configureStore({
                 ordersApi.middleware,
                 employeesApi.middleware,
                 profileApi.middleware,
+                plansApi.middleware,
                 fleetApi.middleware,
             ),
 });

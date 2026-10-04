@@ -56,7 +56,7 @@ export const transitionOrdersTx = async (tx, { orderIds, toStatus, actorId, reas
 };
 
 export const createOrder = async ({ actor, input }) => {
-	const context = await getOrderContext(actor);
+	const context = await getOrderContext(input.outletId ? { ...actor, outletId: input.outletId } : actor);
 	const totals = totalsFor(input.items);
 	const deliveryDate = dateValue(input.requestedDeliveryDate);
 	const order = await getPrisma().$transaction(async (tx) => {
@@ -71,6 +71,52 @@ export const createOrder = async ({ actor, input }) => {
 		return submitOrderTx(tx, { actor, order: created, context });
 	});
 	return toOrderDetailDTO(order);
+};
+
+export const listStockCatalogService = async ({ depotId } = {}) => {
+	const where = {};
+	if (depotId) where.depotId = depotId;
+	const stocks = await getPrisma().stock.findMany({
+		where,
+		include: { depot: { select: { id: true, code: true, name: true } } },
+		orderBy: [{ sku: "asc" }],
+	});
+	return stocks.map((s) => ({
+		id: s.id,
+		sku: s.sku,
+		itemName: s.itemName,
+		unit: s.unit,
+		quantityOnHand: s.quantityOnHand,
+		reservedQty: s.reservedQty,
+		availableQty: Math.max(0, s.quantityOnHand - s.reservedQty),
+		depotId: s.depotId,
+		depotCode: s.depot.code,
+		depotName: s.depot.name,
+	}));
+};
+
+export const listOutletsForOrdersService = async () => {
+	const outlets = await getPrisma().outlet.findMany({
+		where: { isActive: true },
+		include: { depot: { select: { id: true, code: true, name: true } } },
+		orderBy: [{ name: "asc" }],
+	});
+	return outlets.map((o) => ({
+		id: o.id,
+		code: o.code,
+		name: o.name,
+		brand: o.brand,
+		district: o.district,
+		depotId: o.depotId,
+		depotCode: o.depot.code,
+		depotName: o.depot.name,
+		windowStartMin: o.windowStartMin,
+		windowEndMin: o.windowEndMin,
+		unloadingType: o.unloadingType,
+		vanOnly: o.vanOnly,
+		isMall: o.isMall,
+		unloadingNotes: o.unloadingNotes,
+	}));
 };
 
 export const listOrderService = async ({ actor, filters }) => {

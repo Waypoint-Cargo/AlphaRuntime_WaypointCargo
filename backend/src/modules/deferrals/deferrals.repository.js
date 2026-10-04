@@ -34,6 +34,22 @@ export const previousForOutlet = (outletId, fromDate) =>
     where: { outletId, fromDate, status: { in: ["DEFERRED", "SERVED"] } },
     orderBy: { createdAt: "desc" },
   });
+// Latest deferral an outlet received on `fromDate` (the previous operating day) - drives consecutiveCount and the
+// "previously deferred" hint shown to the dispatcher.
+export const findOutletDeferralOn = (client, outletId, fromDate) =>
+  client.deferral.findFirst({
+    where: { outletId, fromDate },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, consecutiveCount: true, status: true },
+  });
+export const createDeferralsTx = (tx, deferrals) =>
+  deferrals.length ? tx.deferral.createMany({ data: deferrals }) : { count: 0 };
+// An order that gets allocated again is no longer waiting on a deferral decision.
+export const markReplannedForOrderTx = (tx, orderId, decidedById) =>
+  tx.deferral.updateMany({
+    where: { orderId, status: { in: ["PENDING_DECISION", "DEFERRED"] } },
+    data: { status: "REPLANNED", decidedById, decidedAt: new Date() },
+  });
 export async function list(where, skip, take) {
   const [items, total] = await Promise.all([
     db().deferral.findMany({
