@@ -1,4 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, ZoomControl } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Fix default marker icon issue in React-Leaflet
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+let DefaultIcon = L.icon({
+    iconUrl: icon,
+    shadowUrl: iconShadow,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41]
+});
+L.Marker.prototype.options.icon = DefaultIcon;
 import { 
   Search, 
   ChevronDown, 
@@ -259,19 +274,41 @@ export default function LiveTracking() {
         {/* Right Column - Map and Details */}
         <div className="flex-1 flex flex-col lg:h-full bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-h-[500px]">
           
-          {/* Map Area Placeholder */}
-          <div className="flex-1 bg-[#E8F0F2] relative overflow-hidden flex items-center justify-center min-h-[300px]">
-            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#053D31 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
-            
-            {/* Top right controls */}
-            <div className="absolute top-4 right-4 flex flex-col bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden z-10">
-              <button className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-50 border-b border-gray-100 font-bold">+</button>
-              <button className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-50 border-b border-gray-100 font-bold">-</button>
-              <button className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-50"><Navigation size={14} /></button>
-            </div>
+          {/* Interactive Map Area */}
+          <div className="flex-1 relative overflow-hidden flex flex-col min-h-[300px]">
+            <MapContainer 
+              center={[7.8731, 80.7718]} 
+              zoom={8} 
+              style={{ height: '100%', width: '100%', zIndex: 0 }}
+              zoomControl={false}
+            >
+              <TileLayer
+                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+              />
+              <ZoomControl position="topright" />
+              
+              {/* Mock active deliveries in Sri Lanka */}
+              <Marker position={[6.9271, 79.8612]}>
+                <Popup>
+                  <div className="text-center">
+                    <p className="font-bold text-[#053D31]">Van 023</p>
+                    <p className="text-xs">Kasun Perera</p>
+                  </div>
+                </Popup>
+              </Marker>
+              
+              <Marker position={[7.2906, 80.6337]}>
+                <Popup>Kandy Delivery</Popup>
+              </Marker>
+              
+              <Marker position={[6.0535, 80.2210]}>
+                <Popup>Galle Delivery</Popup>
+              </Marker>
+            </MapContainer>
 
-            {/* Toggle switch */}
-            <div className="absolute top-4 left-4 flex bg-white rounded-lg shadow-sm border border-gray-200 p-1 z-10">
+            {/* Toggle switch (Overlay) */}
+            <div className="absolute top-4 left-4 flex bg-white rounded-lg shadow-sm border border-gray-200 p-1 z-[1000]">
               <button 
                 onClick={() => setActiveTab('Drivers')}
                 className={`px-3 py-1.5 md:px-4 rounded-md text-xs font-bold transition-colors ${activeTab === 'Drivers' ? 'bg-[#053D31] text-white' : 'text-gray-600 hover:bg-gray-100'}`}
@@ -286,28 +323,9 @@ export default function LiveTracking() {
               </button>
             </div>
 
-            <button className="absolute bottom-4 right-4 px-3 py-2 md:px-4 md:py-2 bg-white rounded-lg shadow border border-gray-200 text-xs md:text-sm font-bold text-gray-700 flex items-center gap-2 hover:bg-gray-50 z-10">
+            <button className="absolute bottom-4 right-4 px-3 py-2 md:px-4 md:py-2 bg-white rounded-lg shadow border border-gray-200 text-xs md:text-sm font-bold text-gray-700 flex items-center gap-2 hover:bg-gray-50 z-[1000]">
               <Map size={16} /> Recenter
             </button>
-
-            {/* Mock Map Route and Markers */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity: 0.6 }} preserveAspectRatio="none">
-              <path d="M 20% 20% Q 30% 40% 50% 50% T 80% 80%" stroke="#053D31" strokeWidth="4" fill="none" strokeDasharray="6 6" />
-            </svg>
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
-              <div className="relative">
-                <div className="w-8 h-8 md:w-10 md:h-10 bg-[#FFC107] rounded-full flex items-center justify-center text-[#053D31] border-2 md:border-4 border-white shadow-lg relative z-10">
-                  <Truck size={16} className="md:w-[18px] md:h-[18px]" fill="currentColor" />
-                </div>
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 -translate-y-1 w-3 h-3 bg-[#FFC107] rotate-45 z-0"></div>
-                <div className="absolute left-full ml-3 top-1/2 transform -translate-y-1/2 bg-white px-3 py-1.5 rounded shadow-sm border border-gray-100 whitespace-nowrap">
-                  <p className="text-xs font-bold text-gray-900">Van 023</p>
-                  <p className="text-[10px] text-gray-500">Kasun Perera</p>
-                </div>
-              </div>
-            </div>
-            <div className="absolute top-[30%] right-[30%] w-5 h-5 md:w-6 md:h-6 bg-green-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-white"><CheckCircle2 size={10} className="md:w-3 md:h-3" /></div>
-            <div className="absolute bottom-[30%] left-[30%] w-5 h-5 md:w-6 md:h-6 bg-orange-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-white"><MapPin size={10} className="md:w-3 md:h-3" /></div>
           </div>
 
           {/* Bottom Details Panel - Responsive Grid/Flex */}
