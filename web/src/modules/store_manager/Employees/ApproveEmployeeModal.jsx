@@ -3,7 +3,7 @@ import { getApiErrorMessage } from "@/shared/utils/apiError";
 import { formatDateTime } from "@/shared/utils/dateUtils";
 import { useApproveEmployeeMutation, useGetOutletsQuery } from "./employeesApi";
 import { roleLabel } from "./employeeUtils";
-import { useEscapeKey } from "./useEscapeKey";
+import { useEscapeKey } from "@/shared/hooks/useEscapeKey";
 
 const matchesOutlet = (outlet, needle) =>
   [outlet.name, outlet.code, outlet.district, outlet.brand, outlet.depot?.name]
