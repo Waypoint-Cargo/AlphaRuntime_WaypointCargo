@@ -1,22 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'app.dart';
+import 'core/theme/app_colors.dart';
 
-Future<void> main() async {
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: AppColors.deepForestGreen,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: AppColors.white,
+      systemNavigationBarIconBrightness: Brightness.dark,
+    ),
+  );
   runApp(const WaypointCargoApp());
-}
-
-class WaypointCargoApp extends StatelessWidget {
-  const WaypointCargoApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Waypoint Cargo',
-      debugShowCheckedModeBanner: false,
-      home: const Scaffold(
-        body: Center(
-          child: Text('Waypoint Cargo'),
-        ),
-      ),
-    );
-  }
 }

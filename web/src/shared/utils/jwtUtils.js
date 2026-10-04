@@ -1,5 +1,6 @@
 // Decodes the payload of a JWT without verifying its signature.
 // Returns null if the token is missing or malformed.
+// Only for reading display/routing claims — the backend verifies every token.
 export function decodeJwtPayload(token) {
    if (!token || typeof token !== "string") return null;
 
@@ -18,4 +19,18 @@ export function decodeJwtPayload(token) {
    } catch {
       return null;
    }
+}
+
+// Builds the client-side user from the access-token claims issued by the
+// backend (utils/tokens.js): { sub, employeeNumber, fullName, role }.
+export function userFromAccessToken(token) {
+   const claims = decodeJwtPayload(token);
+   if (!claims?.sub) return null;
+
+   return {
+      id: claims.sub,
+      employeeNumber: claims.employeeNumber ?? null,
+      fullName: claims.fullName ?? null,
+      role: claims.role ?? null,
+   };
 }

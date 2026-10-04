@@ -1,1 +1,32 @@
 @import "tailwindcss";
+
+@theme {
+    /* Brand */
+    --color-forest: #0d302d;
+    --color-gold: #f2be32;
+    --color-brand: #04594a;
+
+    /* Text and surfaces */
+    --color-ink-secondary: #6b7a78;
+    --color-surface: #ffffff;
+    --color-screen: #f4f6f8;
+    --color-muted: #eef2f1;
+
+    /* Lines */
+    --color-line: #d9e1df;
+    --color-divider: #e7eceb;
+
+    /* Status */
+    --color-success: #2e7d5b;
+    --color-success-light: #e8f5ef;
+    --color-error: #c94c4c;
+    --color-error-light: #fcecec;
+    --color-pending: #d99a16;
+    --color-pending-light: #fff5d9;
+    --color-info: #3f7c8a;
+    --color-info-light: #eaf4f6;
+}
+
+body {
+    @apply bg-screen text-forest;
+}

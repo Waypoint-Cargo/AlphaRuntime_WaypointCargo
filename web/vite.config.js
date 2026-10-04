@@ -8,8 +8,8 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [
     react(),
-    tailwindcss(),
-    babel({ presets: [reactCompilerPreset()] })
+    babel({ presets: [reactCompilerPreset()] }),
+    tailwindcss(), // <-- added
   ],
   resolve: {
     alias: {

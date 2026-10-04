@@ -40,6 +40,13 @@ enum VehicleType {
   VAN
 }
 
+enum VehicleStatus {
+  AVAILABLE
+  ASSIGNED
+  ON_ROUTE
+  MAINTENANCE
+}
+
 enum UnloadingType {
   REAR_DOCK
   CURB
@@ -193,7 +200,7 @@ enum SyncResult {
   REJECTED
 }
 
-//  IDENTITY & AUTH 
+// IDENTITY & AUTH 
 
 model User {
   id       String  @id @default(cuid())
@@ -304,7 +311,7 @@ model PasswordReset {
   @@index([userId])
 }
 
-//  REFERENCE DATA 
+// REFERENCE DATA 
 
 model Depot {
   id        String   @id @default(cuid())
@@ -322,6 +329,7 @@ model Depot {
   orders          Order[]
   plans           DispatchPlan[]
   demandForecasts DemandForecast[]
+  stocks          Stock[]
 }
 
 // Dispatcher / loader scope (a user may cover one or both depots)
@@ -398,6 +406,8 @@ model Vehicle {
   defaultDriverId String? @unique
   defaultDriver   User?   @relation("VehicleDefaultDriver", fields: [defaultDriverId], references: [id], onDelete: SetNull)
 
+  // operational state shown on the Fleet board — separate from isActive (soft delete/deactivation)
+  status           VehicleStatus @default(AVAILABLE)
   isActive         Boolean  @default(true)
   statusNote       String?
   sourceAttributes Json     @default("{}")
@@ -408,6 +418,7 @@ model Vehicle {
   fuelEntries FuelLedgerEntry[]
 
   @@index([homeDepotId, type, isRefrigerated])
+  @@index([status])
 }
 
 model CalendarDay {
@@ -440,7 +451,27 @@ model OutletEmployee {
   @@index([outletId])
 }
 
-//  ORDERS 
+// STOCK
+
+/// Per-depot stock used by the order availability check.
+/// DB check: quantityOnHand >= 0, reservedQty >= 0, reservedQty <= quantityOnHand.
+model Stock {
+  id             String   @id @default(cuid())
+  depotId        String
+  depot          Depot    @relation(fields: [depotId], references: [id], onDelete: Cascade)
+  sku            String
+  itemName       String
+  unit           String   @default("EA")
+  quantityOnHand Int      @default(0)
+  reservedQty    Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([depotId, sku])
+  @@index([sku])
+}
+
+// ORDERS 
 
 model Order {
   id        String @id @default(cuid())
