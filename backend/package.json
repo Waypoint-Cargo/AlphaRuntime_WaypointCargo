@@ -14,7 +14,8 @@
       "db:seed:outlets": "node prisma/seed-outlets.js",
       "db:seed:vehicles": "node prisma/seed-vehicles.js",
       "db:seed:demo": "node prisma/seed-demo-dataset.js",
-      "db:seed:loader-demo": "node prisma/seed-loader-demo.js"
+      "db:seed:loader-demo": "node prisma/seed-loader-demo.js",
+      "db:check:loader": "node prisma/check-loader-flow.js"
    },
    "keywords": [],
    "author": "",

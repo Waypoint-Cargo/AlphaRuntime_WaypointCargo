@@ -93,7 +93,7 @@ class TaskCardWidget extends StatelessWidget {
                   child: _buildMetricItem(
                     icon: Icons.access_time_rounded,
                     title: 'Departure',
-                    value: DateFormatter.formatTime(task.plannedDeparture),
+                    value: DateFormatter.formatDeparture(task.plannedDeparture),
                   ),
                 ),
               ),

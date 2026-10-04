@@ -191,7 +191,7 @@ export const toTaskListItemDTO = (model) => ({
 });
 
 // Tasks screen: a page of cards plus pagination metadata.
-export const toTaskListResponseDTO = ({ models, total, page, limit, date, tab }) => ({
+export const toTaskListResponseDTO = ({ models, total, page, limit, date, tab, upcoming = false }) => ({
     items: models.map(toTaskListItemDTO),
     meta: {
         page,
@@ -199,6 +199,8 @@ export const toTaskListResponseDTO = ({ models, total, page, limit, date, tab })
         total,
         totalPages: Math.max(1, Math.ceil(total / limit)),
         date,
+        // true when no date was asked for: the list then covers `date` (today) and every later day
+        upcoming,
         tab,
     },
 });

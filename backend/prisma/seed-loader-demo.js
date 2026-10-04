@@ -166,8 +166,8 @@ const run = async () => {
 
             // a published plan for the day (reuse one when it exists; a plan still being drafted is left as it is)
             let plan = await tx.dispatchPlan.findUnique({ where: { depotId_deliveryDate: { depotId: depot.id, deliveryDate: date } } });
-            if (plan && plan.status !== "PUBLISHED") {
-                throw new Error(`The ${DEPOT_CODE} plan for ${day} exists but is ${plan.status}. The loader only sees published plans; publish or remove it first.`);
+            if (plan && !["CLOSED", "DRAFT", "PUBLISHED", "IN_EXECUTION"].includes(plan.status)) {
+                throw new Error(`The ${DEPOT_CODE} plan for ${day} is ${plan.status}, so the loader does not see its trips. Close the queue or publish it first.`);
             }
             if (!plan) {
                 plan = await tx.dispatchPlan.create({ data: { depotId: depot.id, deliveryDate: date, status: "PUBLISHED", publishedAt: new Date() } });

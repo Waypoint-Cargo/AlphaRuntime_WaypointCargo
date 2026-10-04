@@ -16,9 +16,12 @@ import crypto from "node:crypto";
 // Orders a loader may load: planned onto this trip, or already loaded by an earlier pass.
 export const LOADABLE_ORDER_STATUSES = ["PLANNED", "PARTIALLY_LOADED", "LOADED"];
 
-// Plans whose trips are in the shared loading pool. COMPLETED plans stay readable (Completed tab) but are not loadable.
-export const POOL_PLAN_STATUSES = ["PUBLISHED", "IN_EXECUTION"];
-export const VISIBLE_PLAN_STATUSES = ["PUBLISHED", "IN_EXECUTION", "COMPLETED"];
+// Plans whose trips are in the shared loading pool. A trip becomes a loading task the moment the dispatcher allocates an
+// order to it (the plan is then DRAFT); publishing only commits the plan. Once a loader starts a trip it is LOADING and
+// the dispatcher can no longer take orders off it, so an unpublished plan cannot pull the load from under a loader.
+// COMPLETED plans stay readable (Completed tab) but are not loadable.
+export const POOL_PLAN_STATUSES = ["CLOSED", "DRAFT", "PUBLISHED", "IN_EXECUTION"];
+export const VISIBLE_PLAN_STATUSES = [...POOL_PLAN_STATUSES, "COMPLETED"];
 
 // A trip still waiting for (or in the middle of) loading.
 export const PENDING_TRIP_STATUSES = ["PLANNED", "LOADING"];
@@ -54,6 +57,12 @@ export const deriveLineStatus = ({ storedStatus, loadedQty, plannedQty }) => {
     if (FLAGGED_CHECK_STATUSES.includes(storedStatus)) return storedStatus;
     return plannedQty > 0 && loadedQty >= plannedQty ? "VERIFIED" : "PENDING";
 };
+
+// Publishing a plan registers an empty session for every trip (planning.service). The column default makes it
+// IN_PROGRESS, but nobody has started it - no holder, no start time - so it is a PENDING task like a trip with no
+// session at all. A session someone really started always has startedAt; one whose holder was deleted keeps it.
+export const isUnstartedSession = (session) =>
+    Boolean(session) && session.status === "IN_PROGRESS" && !session.startedAt && !session.lockedById && !session.completedAt;
 
 // A lock past its expiry (or one whose holder was deleted) may be taken over by another loader.
 export const isLockExpired = (session, now) =>
@@ -359,7 +368,7 @@ export const computeCompletionBlockers = (model) => {
 export const buildTaskModel = ({ trip, viewerId = null, now = new Date(), lockTtlSec = 900 }) => {
     const session = trip.loadingSession ?? null;
     // No session row yet = the task is still waiting in the shared pool.
-    const status = session?.status ?? "PENDING";
+    const status = !session || isUnstartedSession(session) ? "PENDING" : session.status;
     // A finished load is a record, not a plan: keep every order that was on it, whatever happened to the orders since.
     const isFrozen = status === "COMPLETED";
     const checks = session?.checks ?? [];
@@ -493,7 +502,7 @@ export const buildTaskModel = ({ trip, viewerId = null, now = new Date(), lockTt
         depot: trip.plan.depot,
         plannedDeparture: trip.plannedDeparture,
         vehicle: trip.vehicle,
-        sessionId: session?.id ?? null,
+        sessionId: status === "PENDING" ? null : session.id,
         status,
         // the Tasks tab this task sits in; null for a trip that left without a finished load (not a loader's concern)
         tab: status === "COMPLETED" ? "completed" : PENDING_TRIP_STATUSES.includes(trip.status) ? "pending" : null,

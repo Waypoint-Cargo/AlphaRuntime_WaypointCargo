@@ -200,7 +200,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                 child: _buildMetaItem(
                   icon: Icons.access_time_rounded,
                   label: 'Departure',
-                  value: DateFormatter.formatTime(task.plannedDeparture),
+                  value: DateFormatter.formatDeparture(task.plannedDeparture),
                 ),
               ),
               _buildDivider(),

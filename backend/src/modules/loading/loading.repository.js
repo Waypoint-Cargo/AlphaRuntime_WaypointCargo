@@ -133,9 +133,9 @@ export const tripSelect = (detail = false) => ({
         : {}),
 });
 
-// trips of the loader's depots on one delivery day that belong in the loading pool
-const poolWhere = ({ depotIds, date }) => ({
-    deliveryDate: date,
+// trips of the loader's depots that belong in the loading pool: on one delivery day (`date`) or on `from` and later
+const poolWhere = ({ depotIds, date, from }) => ({
+    deliveryDate: date ?? { gte: from },
     status: { not: "CANCELLED" },
     plan: { depotId: { in: depotIds }, status: { in: VISIBLE_PLAN_STATUSES } },
     // a route with nothing allocated to it has nothing to load
@@ -178,11 +178,11 @@ export const findLoaderScope = async (userId) => {
 };
 
 // one page of the task pool for a tab, with optional route/vehicle search and brand filter
-export const findTasksPage = async ({ depotIds, date, tab, search, brand, skip, take }) => {
+export const findTasksPage = async ({ depotIds, date, from, tab, search, brand, skip, take }) => {
     const db = getPrisma();
     const where = {
         AND: [
-            poolWhere({ depotIds, date }),
+            poolWhere({ depotIds, date, from }),
             tabWhere(tab),
             ...(search
                 ? [
@@ -209,10 +209,10 @@ export const findTasksPage = async ({ depotIds, date, tab, search, brand, skip, 
 };
 
 // every trip in the pool for one day (home summary totals)
-export const findTripsForDay = async ({ depotIds, date }) => {
+export const findTripsForDay = async ({ depotIds, date, from }) => {
     const db = getPrisma();
     return db.trip.findMany({
-        where: poolWhere({ depotIds, date }),
+        where: poolWhere({ depotIds, date, from }),
         select: tripSelect(false),
         orderBy: departureOrder,
     });
@@ -236,7 +236,7 @@ export const findTripSessionTx = (tx, tripId, depotIds) => {
         select: {
             id: true,
             loadingSession: {
-                select: { id: true, status: true, lockedById: true, lockedBy: { select: userSelect }, lockExpiresAt: true },
+                select: { id: true, status: true, startedAt: true, completedAt: true, lockedById: true, lockedBy: { select: userSelect }, lockExpiresAt: true },
             },
         },
     });
@@ -270,6 +270,8 @@ export const findSessionStateTx = (tx, tripId) => {
             lockedById: true,
             lockedBy: { select: userSelect },
             lockExpiresAt: true,
+            startedAt: true,
+            completedAt: true,
         },
     });
 };
@@ -277,6 +279,14 @@ export const findSessionStateTx = (tx, tripId) => {
 // create the session for a trip; count 0 means another loader created it first (ON CONFLICT DO NOTHING)
 export const createSessionIfAbsentTx = (tx, data) => {
     return tx.loadingSession.createMany({ data: [data], skipDuplicates: true });
+};
+
+// compare-and-set: the first claim of a session the plan publication registered but nobody has started
+export const claimUnstartedSessionTx = (tx, { sessionId, userId, lockExpiresAt, now }) => {
+    return tx.loadingSession.updateMany({
+        where: { id: sessionId, status: "IN_PROGRESS", lockedById: null, startedAt: null, completedAt: null },
+        data: { lockedById: userId, lockExpiresAt, startedById: userId, startedAt: now },
+    });
 };
 
 // compare-and-set PAUSED -> IN_PROGRESS; matching on pausedAt makes sure the idle time added is the interval we read
