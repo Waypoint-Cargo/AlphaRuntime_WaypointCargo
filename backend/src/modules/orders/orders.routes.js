@@ -4,19 +4,22 @@ import { validate } from "../../middlewares/validate.js";
 import { catchAsync } from "../../utils/catchAsync.js";
 import {
 	cancelOrderController, checksOrderController, confirmOrderController, createOrderController,
-	deferOrderController, getOrderController, listOrdersController, submitOrderController,
-	summaryOrdersController, updateOrderController,
+	deferOrderController, getOrderController, listOrdersController, outletsForOrdersController,
+	stockCatalogController, submitOrderController, summaryOrdersController, updateOrderController,
 } from "./orders.controller.js";
 import { cancelOrderSchema, createOrderSchema, listOrdersSchema, orderIdSchema, updateOrderSchema } from "./orders.validator.js";
 
 const ordersRouter = Router();
 const storeManager = requireRole("STORE_MANAGER");
+const orderCreators = requireRole("STORE_MANAGER", "DISPATCHER", "ADMIN");
 const scopedReaders = requireRole("STORE_MANAGER", "DISPATCHER", "ADMIN");
 
 ordersRouter.use(authenticateUser);
 ordersRouter.get("/summary", scopedReaders, validate(listOrdersSchema), catchAsync(summaryOrdersController));
+ordersRouter.get("/stock-catalog", scopedReaders, catchAsync(stockCatalogController));
+ordersRouter.get("/outlets", scopedReaders, catchAsync(outletsForOrdersController));
 ordersRouter.get("/", scopedReaders, validate(listOrdersSchema), catchAsync(listOrdersController));
-ordersRouter.post("/", storeManager, validate(createOrderSchema), catchAsync(createOrderController));
+ordersRouter.post("/", orderCreators, validate(createOrderSchema), catchAsync(createOrderController));
 ordersRouter.get("/:id", scopedReaders, validate(orderIdSchema), catchAsync(getOrderController));
 ordersRouter.patch("/:id", storeManager, validate(updateOrderSchema), catchAsync(updateOrderController));
 ordersRouter.post("/:id/submit", storeManager, validate(orderIdSchema), catchAsync(submitOrderController));

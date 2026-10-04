@@ -5,6 +5,7 @@ export const toOrderListDTO = (order) => ({
 	id: order.id,
 	reference: order.reference,
 	outletId: order.outletId,
+	outletCode: order.outlet?.code ?? order.Outlet?.code ?? null,
 	outletName: order.outlet?.name ?? order.Outlet?.name ?? order.outletId,
 	city: order.outlet?.district ?? order.Outlet?.district ?? null,
 	destination: order.outlet?.district ?? order.outlet?.name ?? "Colombo",

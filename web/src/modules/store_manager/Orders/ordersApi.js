@@ -48,10 +48,18 @@ const normalizeOrder = (order) => {
   return {
     uid: order.id,
     id: order.reference ?? order.id,
+    reference: order.reference ?? order.id,
     status,
+    rawStatus: order.status,
+    brand: order.brand,
+    tempClass: order.tempClass,
     created: createdAt ? createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—",
     date: order.deliveryDate ? toDateLabel(order.deliveryDate) : "—",
+    deliveryDate: order.deliveryDate ? (typeof order.deliveryDate === "string" ? order.deliveryDate.slice(0, 10) : new Date(order.deliveryDate).toISOString().slice(0, 10)) : null,
+    requestedDeliveryDate: order.requestedDeliveryDate ? (typeof order.requestedDeliveryDate === "string" ? order.requestedDeliveryDate.slice(0, 10) : new Date(order.requestedDeliveryDate).toISOString().slice(0, 10)) : null,
     outlet: order.outletName ?? order.outlet?.name ?? order.outletId ?? "Outlet",
+    outletName: order.outletName ?? order.outlet?.name ?? order.outletId ?? "Outlet",
+    outletCode: order.outletCode ?? order.outlet?.code ?? order.raw?.outlet?.code ?? "",
     depot: order.depotName ?? order.depot?.name ?? order.depotId ?? "Depot",
     city: order.city ?? "Colombo",
     items: Number(order.itemCount ?? items.length ?? 0),
@@ -61,6 +69,10 @@ const normalizeOrder = (order) => {
     window: window.startMin !== undefined && window.endMin !== undefined
       ? `${toClockLabel(window.startMin)} – ${toClockLabel(window.endMin)}`
       : "—",
+    windowStartMin: window.startMin,
+    windowEndMin: window.endMin,
+    isFragile: order.isFragile ?? false,
+    isHighValue: order.isHighValue ?? false,
     vehicleType: order.snapshot?.vanOnly ? "Van" : "Any",
     requirements: {
       vehicle: order.snapshot?.vanOnly ? "Van required" : "No restriction",
@@ -80,6 +92,7 @@ const normalizeOrder = (order) => {
     plannedAt: order.confirmedAt ? new Date(order.confirmedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—",
     dispatchWindow: order.dispatchWindow ?? "09:30 AM – 10:00 AM",
     driver: order.driver ?? null,
+    tripCode: order.tripCode ?? null,
     raw: order,
   };
 };
@@ -98,18 +111,26 @@ export const ordersApi = createApi({
   tagTypes: ["Orders"],
   endpoints: (builder) => ({
     getOrders: builder.query({
-      query: ({ status = null, page = 1, pageSize = 20, q = "" } = {}) => ({
+      query: ({ status = null, brand = null, deliveryDate = null, sort = null, page = 1, pageSize = 20, q = "" } = {}) => ({
         url: "/orders",
         params: {
           page,
           pageSize,
           ...(status ? { status: STATUS_QUERY_MAP[status] ?? status } : {}),
+          ...(brand && brand !== "ALL" && brand !== "All brands" ? { brand: brand.toUpperCase() } : {}),
+          ...(deliveryDate ? { deliveryDate } : {}),
+          ...(sort ? { sort } : {}),
           ...(q ? { q } : {}),
         },
       }),
-      transformResponse(response) {
+      transformResponse(response, meta, arg) {
+        const rawItems = response?.data ?? [];
+        const isRequestingCancelled = arg?.status?.includes?.("CANCELLED");
+        const items = isRequestingCancelled
+          ? rawItems
+          : rawItems.filter((order) => order.status !== "CANCELLED");
         return {
-          items: (response?.data ?? []).filter((order) => order.status !== "CANCELLED").map(normalizeOrder),
+          items: items.map(normalizeOrder),
           meta: response?.meta ?? { page: 1, pageSize: 20, total: 0, pageCount: 1 },
         };
       },
@@ -133,6 +154,17 @@ export const ordersApi = createApi({
     getOrderChecks: builder.query({
       query: (id) => ({ url: `/orders/${id}/checks` }),
       transformResponse: (response) => response?.data ?? { verdict: "FAIL", checks: [] },
+    }),
+    getStockCatalog: builder.query({
+      query: ({ depotId } = {}) => ({
+        url: "/orders/stock-catalog",
+        params: depotId ? { depotId } : {},
+      }),
+      transformResponse: (response) => response?.data ?? [],
+    }),
+    getOrderOutlets: builder.query({
+      query: () => ({ url: "/orders/outlets" }),
+      transformResponse: (response) => response?.data ?? [],
     }),
     createOrder: builder.mutation({
       query: (payload) => ({ url: "/orders", method: "POST", body: payload }),
@@ -162,6 +194,8 @@ export const {
   useGetOrderSummaryQuery,
   useGetOrderByIdQuery,
   useLazyGetOrderChecksQuery,
+  useGetStockCatalogQuery,
+  useGetOrderOutletsQuery,
   useCreateOrderMutation,
   useSubmitOrderMutation,
   useConfirmOrderMutation,

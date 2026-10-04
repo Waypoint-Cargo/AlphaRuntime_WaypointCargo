@@ -20,11 +20,12 @@ const status = z.enum([
 
 const pagination = {
 	page: z.coerce.number().int().min(1).default(1),
-	pageSize: z.coerce.number().int().min(1).max(100).default(20),
+	pageSize: z.coerce.number().int().min(1).max(250).default(20),
 };
 
 export const createOrderSchema = z.object({
 	body: z.object({
+		outletId: z.string().trim().optional(),
 		tempClass: z.enum(["AMBIENT", "CHILLED", "FROZEN"]),
 		requestedDeliveryDate: dateString,
 		items: z.array(itemSchema).min(1).max(200),
@@ -42,12 +43,18 @@ export const listOrdersSchema = z.object({
 	query: z.object({
 		deliveryDate: dateString.optional(),
 		status: z.string().transform((value) => value.split(",")).pipe(z.array(status)).optional(),
-		brand: z.string().trim().max(40).optional(),
+		brand: z.string().trim().toUpperCase().pipe(z.enum(["FRESH", "STYLE", "TECH"])).optional(),
 		tempClass: z.enum(["AMBIENT", "CHILLED", "FROZEN"]).optional(),
 		outletId: z.string().trim().max(64).optional(),
 		depotId: z.string().trim().max(64).optional(),
 		q: z.string().trim().max(120).optional(),
-		sort: z.enum(["-createdAt", "deliveryDate", "-deliveryDate"]).default("-createdAt"),
+		sort: z.enum([
+			"-createdAt", "createdAt",
+			"deliveryDate", "-deliveryDate",
+			"-totalWeightKg", "totalWeightKg",
+			"outletName", "-outletName",
+			"status",
+		]).default("-createdAt"),
 		...pagination,
 	}),
 	params: z.object({}),
