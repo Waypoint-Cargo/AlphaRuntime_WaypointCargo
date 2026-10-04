@@ -15,4 +15,21 @@ class ApiConstants {
   static const String authRegister = '/auth/register';
   static const String authLogin = '/auth/login';
   static const String authLogout = '/auth/logout';
+  static const String authRefresh = '/auth/refresh';
+
+  // Loader endpoints (a loading task is identified by its trip id)
+  static const String loadingSummary = '/loading/summary';
+  static const String loadingTasks = '/loading/tasks';
+  static const String loadingIssues = '/loading/issues';
+  static String loadingTask(String tripId) =>
+      '$loadingTasks/${Uri.encodeComponent(tripId)}';
+  static String loadingTaskStart(String tripId) => '${loadingTask(tripId)}/start';
+  static String loadingTaskPause(String tripId) => '${loadingTask(tripId)}/pause';
+  static String loadingTaskLines(String tripId) => '${loadingTask(tripId)}/lines';
+  static String loadingTaskShortfall(String tripId) =>
+      '${loadingTask(tripId)}/shortfall';
+  static String loadingTaskSummary(String tripId) =>
+      '${loadingTask(tripId)}/summary';
+  static String loadingTaskComplete(String tripId) =>
+      '${loadingTask(tripId)}/complete';
 }

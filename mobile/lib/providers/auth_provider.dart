@@ -16,13 +16,21 @@ class AuthProvider extends ChangeNotifier {
   String? _refreshToken;
   LoginResponse? _lastLoginResponse;
   RegisterResponse? _lastRegisterResponse;
+  Future<String?>? _refreshInFlight;
+  bool _sessionExpired = false;
 
   factory AuthProvider({AuthService? authService, ApiService? apiService}) {
     final service = authService ?? AuthService(apiService: apiService ?? ApiService());
     return AuthProvider._(service);
   }
 
-  AuthProvider._(this._authService) : _apiService = _authService.apiService;
+  AuthProvider._(this._authService) : _apiService = _authService.apiService {
+    // Lets the API client renew an expired access token without bothering the user.
+    _apiService.onUnauthorized = _renewAccessToken;
+  }
+
+  /// The API client carrying this session's token, shared with other providers.
+  ApiService get apiService => _apiService;
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -33,6 +41,14 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _currentUser != null && _accessToken != null;
   LoginResponse? get lastLoginResponse => _lastLoginResponse;
   RegisterResponse? get lastRegisterResponse => _lastRegisterResponse;
+
+  /// Whether the session ended without the user asking (the server refused to
+  /// renew it). Reading it resets it, so the app reacts exactly once.
+  bool takeSessionExpired() {
+    final expired = _sessionExpired;
+    _sessionExpired = false;
+    return expired;
+  }
 
   /// Clears any cached error messages.
   void clearErrors() {
@@ -64,6 +80,7 @@ class AuthProvider extends ChangeNotifier {
 
       final response = await _authService.login(request);
       _lastLoginResponse = response;
+      _sessionExpired = false;
       _currentUser = response.user;
       _accessToken = response.accessToken;
       _refreshToken = response.refreshToken;
@@ -128,6 +145,42 @@ class AuthProvider extends ChangeNotifier {
       _fieldErrors = {};
       notifyListeners();
       return false;
+    }
+  }
+
+  /// Renews the access token with the refresh token.
+  ///
+  /// Callers that hit 401 at the same moment share one request: a refresh
+  /// token works once, so a second parallel refresh would look like token
+  /// theft to the server and end the whole session.
+  Future<String?> _renewAccessToken() {
+    return _refreshInFlight ??=
+        _refreshTokens().whenComplete(() => _refreshInFlight = null);
+  }
+
+  Future<String?> _refreshTokens() async {
+    final refreshToken = _refreshToken;
+    if (refreshToken == null) return null;
+
+    try {
+      final tokens = await _authService.refresh(refreshToken: refreshToken);
+      _accessToken = tokens.accessToken;
+      _refreshToken = tokens.refreshToken;
+      _apiService.setAuthToken(tokens.accessToken);
+      return tokens.accessToken;
+    } on ApiException catch (e) {
+      // 401/403 means the server will not renew this session any more
+      // (revoked, expired, account suspended). Being offline proves nothing,
+      // so a network failure keeps the session and the caller can retry later.
+      if (e.statusCode == 401 || e.statusCode == 403) {
+        _currentUser = null;
+        _accessToken = null;
+        _refreshToken = null;
+        _apiService.setAuthToken(null);
+        _sessionExpired = true;
+        notifyListeners();
+      }
+      return null;
     }
   }
 

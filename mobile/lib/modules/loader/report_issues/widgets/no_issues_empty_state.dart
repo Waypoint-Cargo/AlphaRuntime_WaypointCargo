@@ -4,11 +4,12 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_style.dart';
 
 class NoIssuesEmptyState extends StatelessWidget {
-  final VoidCallback onReportIssueTap;
+  /// True on the Pending tab, false on the Resolved tab.
+  final bool isPending;
 
   const NoIssuesEmptyState({
     super.key,
-    required this.onReportIssueTap,
+    this.isPending = true,
   });
 
   @override
@@ -54,9 +55,9 @@ class NoIssuesEmptyState extends StatelessWidget {
           const SizedBox(height: 18),
 
           // Title
-          const Text(
-            'No Report Issues Found',
-            style: TextStyle(
+          Text(
+            isPending ? 'No Pending Issues' : 'No Resolved Issues Yet',
+            style: const TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.bold,
               color: AppColors.deepForestGreen,
@@ -66,37 +67,12 @@ class NoIssuesEmptyState extends StatelessWidget {
           const SizedBox(height: 8),
 
           // Subtitle
-          const Text(
-            'All loading sessions are operating smoothly. If you encounter any stock shortfall or vehicle discrepancy, report it here.',
+          Text(
+            isPending
+                ? 'Shortfalls you report while loading appear here until the dispatcher resolves them.'
+                : 'Issues the dispatcher has resolved will be listed here.',
             style: AppTextStyles.bodySmall,
             textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-
-          // Navigation Button to Report Loading Issue Screen
-          SizedBox(
-            width: double.infinity,
-            height: AppSpacing.buttonHeight,
-            child: ElevatedButton.icon(
-              onPressed: onReportIssueTap,
-              icon: const Icon(
-                Icons.near_me_outlined,
-                size: 20,
-                color: AppColors.deepForestGreen,
-              ),
-              label: const Text(
-                'Report Loading Issue',
-                style: AppTextStyles.button,
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.gold,
-                foregroundColor: AppColors.deepForestGreen,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-                ),
-              ),
-            ),
           ),
         ],
       ),

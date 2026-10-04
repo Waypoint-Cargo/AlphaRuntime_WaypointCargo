@@ -39,7 +39,6 @@ export const sendAccountApprovedEmail = async (user) => {
         email: user.email,
         employeeNumber: user.employeeNumber,
         role: user.role,
-        outlet: user.outlet,
     });
 
     return sendMail({ to: user.email, subject, html, text });

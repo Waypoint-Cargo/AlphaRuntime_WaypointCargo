@@ -18,6 +18,10 @@ class ReportIssueFormCard extends StatelessWidget {
   final bool hasPhoto;
   final ValueChanged<bool> onPhotoUpdated;
 
+  /// Whether to offer the optional photo. A report that cannot carry a photo
+  /// hides it rather than pretend to attach one.
+  final bool showPhoto;
+
   const ReportIssueFormCard({
     super.key,
     required this.selectedOrderRoute,
@@ -31,6 +35,7 @@ class ReportIssueFormCard extends StatelessWidget {
     required this.descriptionController,
     required this.hasPhoto,
     required this.onPhotoUpdated,
+    this.showPhoto = true,
   });
 
   void _showPhotoOptions(BuildContext context) {
@@ -244,12 +249,14 @@ class ReportIssueFormCard extends StatelessWidget {
           const SizedBox(height: 6),
           _buildDescriptionField(),
 
-          const SizedBox(height: 16),
+          if (showPhoto) ...[
+            const SizedBox(height: 16),
 
-          // Optional Photo Section
-          _buildFieldLabel('Optional Photo'),
-          const SizedBox(height: 6),
-          _buildPhotoUploader(context),
+            // Optional Photo Section
+            _buildFieldLabel('Optional Photo'),
+            const SizedBox(height: 6),
+            _buildPhotoUploader(context),
+          ],
         ],
       ),
     );

@@ -9,6 +9,7 @@ import issuesRoutes from "../modules/issues/issues.routes.js";
 import fleetRoutes from "../modules/fleet/fleet.routes.js";
 import ordersRoutes from "../modules/orders/orders.routes.js";
 import trackingRoutes from "../modules/tracking/tracking.routes.js";
+import loadingRoutes from "../modules/loading/loading.routes.js";
 
 
 const router = Router();
@@ -23,6 +24,7 @@ router.use("/issues", issuesRoutes);
 router.use('/vehicles', fleetRoutes);
 router.use("/orders", ordersRoutes);
 router.use('/tracking', trackingRoutes);
+router.use('/loading', loadingRoutes);
 // add all routes here...
 
 export default router;

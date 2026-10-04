@@ -19,10 +19,14 @@ class IssueTypeSelectorCard extends StatelessWidget {
   final IssueType? selectedIssue;
   final ValueChanged<IssueType> onIssueSelected;
 
+  /// The types offered, in order. Defaults to all of them.
+  final List<IssueType> types;
+
   const IssueTypeSelectorCard({
     super.key,
     required this.selectedIssue,
     required this.onIssueSelected,
+    this.types = IssueType.values,
   });
 
   @override
@@ -64,33 +68,26 @@ class IssueTypeSelectorCard extends StatelessWidget {
   }
 
   Widget _buildIssueGrid() {
-    final issues = IssueType.values;
+    // Three cards per row; a short last row keeps the same card width.
+    const perRow = 3;
+    final rows = <Widget>[];
 
-    return Column(
-      children: [
-        // Row 1 (first 3 issues)
-        Row(
-          children: [
-            Expanded(child: _buildIssueItem(issues[0])),
-            const SizedBox(width: 8),
-            Expanded(child: _buildIssueItem(issues[1])),
-            const SizedBox(width: 8),
-            Expanded(child: _buildIssueItem(issues[2])),
-          ],
-        ),
-        const SizedBox(height: 8),
-        // Row 2 (next 3 issues)
-        Row(
-          children: [
-            Expanded(child: _buildIssueItem(issues[3])),
-            const SizedBox(width: 8),
-            Expanded(child: _buildIssueItem(issues[4])),
-            const SizedBox(width: 8),
-            Expanded(child: _buildIssueItem(issues[5])),
-          ],
-        ),
-      ],
-    );
+    for (var start = 0; start < types.length; start += perRow) {
+      if (rows.isNotEmpty) rows.add(const SizedBox(height: 8));
+
+      final cells = <Widget>[];
+      for (var i = start; i < start + perRow; i++) {
+        if (i > start) cells.add(const SizedBox(width: 8));
+        cells.add(
+          Expanded(
+            child: i < types.length ? _buildIssueItem(types[i]) : const SizedBox(),
+          ),
+        );
+      }
+      rows.add(Row(children: cells));
+    }
+
+    return Column(children: rows);
   }
 
   Widget _buildIssueItem(IssueType issue) {

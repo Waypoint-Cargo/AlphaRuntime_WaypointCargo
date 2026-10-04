@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../../core/constants/role_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_text_style.dart';
-import '../../../../widgets/app_scaffold.dart';
+import '../../../../core/widgets/app_error_state.dart';
+import '../../../../core/widgets/app_loading_state.dart';
+import '../../../../core/widgets/app_notice.dart';
 import '../../../../core/widgets/section_header.dart';
+import '../../../../models/loading_issue.dart';
+import '../../../../providers/loader_provider.dart';
+import '../../../../widgets/app_scaffold.dart';
 import '../../home/screens/loader_home_screen.dart';
 import '../../task/screens/task_screens.dart';
 import '../widgets/no_issues_empty_state.dart';
 import '../widgets/reported_issue_card.dart';
-import 'report_issue_screen.dart';
 
-enum IssueFilterTab {
-  pending,
-  resolved,
-}
-
+/// The shortfalls the loaders reported. A report stays under Pending until the
+/// dispatcher resolves it, then moves to Resolved.
 class IssueDetailsScreen extends StatefulWidget {
   const IssueDetailsScreen({super.key});
 
@@ -24,63 +25,17 @@ class IssueDetailsScreen extends StatefulWidget {
 }
 
 class _IssueDetailsScreenState extends State<IssueDetailsScreen> {
-  IssueFilterTab _selectedTab = IssueFilterTab.pending;
   int currentIndex = 2; // Issues tab
 
-  // Initial list of reported issues
-  final List<ReportedIssueItem> _issues = [
-    const ReportedIssueItem(
-      id: 'ISS-1021',
-      type: IssueType.missingItems,
-      orderId: 'ORD-1023',
-      routeId: 'R-005',
-      outletName: 'Retail Store #1023',
-      itemCode: 'ITM-1001',
-      itemName: 'Fresh Bananas',
-      plannedQty: 25,
-      actualQty: 20,
-      description: '5 crates short from bay allocation. Warehouse notified.',
-      reportedTime: '12 mins ago',
-      status: 'Pending',
-      hasPhoto: true,
-    ),
-    const ReportedIssueItem(
-      id: 'ISS-1022',
-      type: IssueType.quantityShort,
-      orderId: 'ORD-1024',
-      routeId: 'R-005',
-      outletName: 'Retail Store #1024',
-      itemCode: 'ITM-2001',
-      itemName: 'Organic Bananas',
-      plannedQty: 14,
-      actualQty: 10,
-      description: 'Stock count mismatch in cold storage zone 2.',
-      reportedTime: '45 mins ago',
-      status: 'Pending',
-      hasPhoto: false,
-    ),
-    const ReportedIssueItem(
-      id: 'ISS-1019',
-      type: IssueType.damagedItems,
-      orderId: 'ORD-1015',
-      routeId: 'R-002',
-      outletName: 'Retail Store #1015',
-      itemCode: 'ITM-3001',
-      itemName: 'Greek Yogurt 400g',
-      plannedQty: 12,
-      actualQty: 12,
-      description: '2 damaged crates replaced during bay verification.',
-      reportedTime: '2 hours ago',
-      status: 'Resolved',
-      hasPhoto: true,
-    ),
-  ];
-
-  int get _pendingCount =>
-      _issues.where((i) => i.status.toLowerCase() == 'pending').length;
-
-  int get _resolvedCount =>
-      _issues.where((i) => i.status.toLowerCase() == 'resolved').length;
+  @override
+  void initState() {
+    super.initState();
+    // Every visit starts on Pending and asks the server, so a report the
+    // dispatcher has resolved meanwhile is already in the right place.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<LoaderProvider>().showIssues();
+    });
+  }
 
   void _onNavTap(int index) {
     if (index == currentIndex) return;
@@ -112,35 +67,10 @@ class _IssueDetailsScreenState extends State<IssueDetailsScreen> {
     }
   }
 
-  void _navigateToReportLoadingIssue() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const ReportLoadingIssueScreen(),
-      ),
-    ).then((_) {
-      if (mounted) {
-        setState(() {});
-      }
-    });
-  }
-
-  List<ReportedIssueItem> get _filteredIssues {
-    return _issues.where((issue) {
-      if (_selectedTab == IssueFilterTab.pending &&
-          issue.status.toLowerCase() != 'pending') {
-        return false;
-      }
-      if (_selectedTab == IssueFilterTab.resolved &&
-          issue.status.toLowerCase() != 'resolved') {
-        return false;
-      }
-      return true;
-    }).toList();
-  }
-
   @override
   Widget build(BuildContext context) {
+    final loader = context.watch<LoaderProvider>();
+
     return AppScaffold(
       title: 'Waypoint Cargo',
       subtitle: 'Plan | Deliver | Stay Connected',
@@ -167,39 +97,39 @@ class _IssueDetailsScreenState extends State<IssueDetailsScreen> {
             icon: Icons.report_problem_outlined,
           ),
 
+          // A thin bar while a refresh runs behind the reports already shown
+          SizedBox(
+            height: 2,
+            child: loader.isIssuesLoading && loader.issues.isNotEmpty
+                ? const LinearProgressIndicator(
+                    color: AppColors.deepForestGreen,
+                    backgroundColor: AppColors.mutedBackground,
+                  )
+                : null,
+          ),
+
           // Scrollable Content
           Expanded(
-            child: SingleChildScrollView(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 1. Found Loading Issues Action Card
-                  _buildReportActionCard(),
+            child: RefreshIndicator(
+              color: AppColors.deepForestGreen,
+              onRefresh: loader.loadIssues,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Segmented Toggle Tabs with counts
+                    _buildToggleTabs(loader),
 
-                  const SizedBox(height: 14),
+                    const SizedBox(height: 14),
 
-                  // 2. Segmented Toggle Tabs below the card with counts
-                  _buildToggleTabs(),
+                    ..._buildIssueList(loader),
 
-                  const SizedBox(height: 14),
-
-                  // 3. Issues List or Empty State
-                  if (_filteredIssues.isEmpty)
-                    NoIssuesEmptyState(
-                      onReportIssueTap: _navigateToReportLoadingIssue,
-                    )
-                  else
-                    ..._filteredIssues.map(
-                      (issue) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12.0),
-                        child: ReportedIssueCard(issue: issue),
-                      ),
-                    ),
-
-                  const SizedBox(height: 16),
-                ],
+                    const SizedBox(height: 16),
+                  ],
+                ),
               ),
             ),
           ),
@@ -208,8 +138,70 @@ class _IssueDetailsScreenState extends State<IssueDetailsScreen> {
     );
   }
 
+  /// The body under the tabs: spinner, error, empty message or the reports.
+  List<Widget> _buildIssueList(LoaderProvider loader) {
+    final issues = loader.issues;
+    final error = loader.issuesError;
+
+    if (issues.isEmpty && loader.isIssuesLoading) {
+      return const [
+        SizedBox(
+          height: 260,
+          child: AppLoadingState(message: 'Loading issues...'),
+        ),
+      ];
+    }
+
+    if (issues.isEmpty && error != null) {
+      return [
+        SizedBox(
+          height: 360,
+          child: error.isNoDepot
+              ? AppErrorState(
+                  icon: Icons.warehouse_outlined,
+                  title: 'No depot assigned',
+                  message:
+                      "Your account isn't assigned to a depot yet, so there are no issues to show. Ask your manager to assign you to one.",
+                  actionLabel: 'Try again',
+                  onAction: loader.loadIssues,
+                )
+              : AppErrorState(
+                  icon: error.isNetworkError
+                      ? Icons.wifi_off_rounded
+                      : Icons.error_outline_rounded,
+                  title: "Couldn't load issues",
+                  message: error.message,
+                  actionLabel: 'Try again',
+                  onAction: loader.loadIssues,
+                ),
+        ),
+      ];
+    }
+
+    if (issues.isEmpty) {
+      return [NoIssuesEmptyState(isPending: loader.issueTab == IssueTab.pending)];
+    }
+
+    return [
+      // A refresh failed but the last list is still useful: keep it and say so.
+      if (error != null) ...[
+        AppNotice(
+          message: "Couldn't refresh. ${error.message}",
+          actionLabel: 'Retry',
+          onAction: loader.loadIssues,
+        ),
+        const SizedBox(height: 12),
+      ],
+      for (final issue in issues)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12.0),
+          child: ReportedIssueCard(issue: issue),
+        ),
+    ];
+  }
+
   // Segmented Toggle Tabs: [Pending (count)] | [Resolved (count)]
-  Widget _buildToggleTabs() {
+  Widget _buildToggleTabs(LoaderProvider loader) {
     return Container(
       width: double.infinity,
       height: 44,
@@ -220,174 +212,45 @@ class _IssueDetailsScreenState extends State<IssueDetailsScreen> {
       ),
       child: Row(
         children: [
-          // Pending Tab Button
-          Expanded(
-            child: GestureDetector(
-              onTap: () {
-                if (_selectedTab != IssueFilterTab.pending) {
-                  setState(() {
-                    _selectedTab = IssueFilterTab.pending;
-                  });
-                }
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeInOut,
-                decoration: BoxDecoration(
-                  color: _selectedTab == IssueFilterTab.pending
-                      ? AppColors.deepForestGreen
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: _selectedTab == IssueFilterTab.pending
-                      ? const [
-                          BoxShadow(
-                            color: Color(0x140D302D),
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
-                          ),
-                        ]
-                      : null,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  'Pending ($_pendingCount)',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.bold,
-                    color: _selectedTab == IssueFilterTab.pending
-                        ? AppColors.white
-                        : AppColors.secondaryText,
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // Resolved Tab Button
-          Expanded(
-            child: GestureDetector(
-              onTap: () {
-                if (_selectedTab != IssueFilterTab.resolved) {
-                  setState(() {
-                    _selectedTab = IssueFilterTab.resolved;
-                  });
-                }
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeInOut,
-                decoration: BoxDecoration(
-                  color: _selectedTab == IssueFilterTab.resolved
-                      ? AppColors.deepForestGreen
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: _selectedTab == IssueFilterTab.resolved
-                      ? const [
-                          BoxShadow(
-                            color: Color(0x140D302D),
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
-                          ),
-                        ]
-                      : null,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  'Resolved ($_resolvedCount)',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.bold,
-                    color: _selectedTab == IssueFilterTab.resolved
-                        ? AppColors.white
-                        : AppColors.secondaryText,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          _buildTabButton(loader, IssueTab.pending, 'Pending', loader.pendingIssueCount),
+          _buildTabButton(loader, IssueTab.resolved, 'Resolved', loader.resolvedIssueCount),
         ],
       ),
     );
   }
 
-  Widget _buildReportActionCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
-      decoration: BoxDecoration(
-        color: AppColors.goldSurface,
-        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-        border: Border.all(
-          color: const Color(0xFFF3E7BE),
-          width: 1.0,
+  Widget _buildTabButton(LoaderProvider loader, IssueTab tab, String label, int? count) {
+    final bool isSelected = loader.issueTab == tab;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => loader.setIssueTab(tab),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeInOut,
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.deepForestGreen : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: isSelected
+                ? const [
+                    BoxShadow(
+                      color: Color(0x140D302D),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            count == null ? label : '$label ($count)',
+            style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.bold,
+              color: isSelected ? AppColors.white : AppColors.secondaryText,
+            ),
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: const BoxDecoration(
-              color: Color(0xFFFDEAC3),
-              shape: BoxShape.circle,
-            ),
-            child: const Center(
-              child: Icon(
-                Icons.warning_amber_rounded,
-                color: AppColors.pending,
-                size: 22,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Found a Loading Issue?',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.deepForestGreen,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Report shortfalls, damages or missing items immediately.',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    fontSize: 11.5,
-                    color: AppColors.secondaryText,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          ElevatedButton.icon(
-            onPressed: _navigateToReportLoadingIssue,
-            icon: const Icon(
-              Icons.add_rounded,
-              size: 18,
-              color: AppColors.deepForestGreen,
-            ),
-            label: const Text(
-              'Report',
-              style: AppTextStyles.button,
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.gold,
-              foregroundColor: AppColors.deepForestGreen,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              minimumSize: const Size(0, 38),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -1,18 +1,5 @@
 import { getPrisma } from "../../config/database.js";
 
-const outletSelect = {
-    id: true,
-    code: true,
-    name: true,
-    brand: true,
-    district: true,
-};
-
-const outletListSelect = {
-    ...outletSelect,
-    depot: { select: { id: true, code: true, name: true } },
-};
-
 const employeeSelect = {
     id: true,
     email: true,
@@ -25,16 +12,14 @@ const employeeSelect = {
     approvedAt: true,
     createdAt: true,
     updatedAt: true,
-    outlet: { select: outletSelect },
 };
 
-// find approved employees, optionally filtered by role/outlet/active status, paginated
-export const findEmployees = async ({ role, outletId, isActive, skip, take }) => {
+// find approved employees, optionally filtered by role/active status, paginated
+export const findEmployees = async ({ role, isActive, skip, take }) => {
     const db = getPrisma();
     const where = {
         isApproved: true,
         ...(role ? { role } : {}),
-        ...(outletId ? { outletId } : {}),
         ...(isActive !== undefined ? { isActive } : {}),
     };
     const [items, total] = await Promise.all([
@@ -76,29 +61,6 @@ export const findUserById = async (userId) => {
     });
 };
 
-// find an outlet by id (used to validate the outlet assigned on approval)
-export const findOutletById = async (outletId) => {
-    const db = getPrisma();
-    return db.outlet.findUnique({
-        where: { id: outletId },
-        select: { ...outletSelect, isActive: true },
-    });
-};
-
-// list active outlets for the approval picker, optionally filtered by brand/district
-export const findOutlets = async ({ brand, district }) => {
-    const db = getPrisma();
-    return db.outlet.findMany({
-        where: {
-            isActive: true,
-            ...(brand ? { brand } : {}),
-            ...(district ? { district } : {}),
-        },
-        select: outletListSelect,
-        orderBy: { code: "asc" },
-    });
-};
-
 // employee numbers already issued for a role prefix (e.g. "dri_001"), used to pick the next one
 export const findEmployeeNumbersByPrefix = async (prefix) => {
     const db = getPrisma();
@@ -109,13 +71,12 @@ export const findEmployeeNumbersByPrefix = async (prefix) => {
     return rows.map((row) => row.employeeNumber);
 };
 
-// approve a pending user: assign employee number + outlet inside a transaction
-export const approveUserTx = (tx, { userId, employeeNumber, outletId, approvedById }) => {
+// approve a pending user: assign employee number inside a transaction
+export const approveUserTx = (tx, { userId, employeeNumber, approvedById }) => {
     return tx.user.update({
         where: { id: userId },
         data: {
             employeeNumber,
-            outletId,
             isApproved: true,
             approvedAt: new Date(),
             approvedById,

@@ -1,9 +1,7 @@
-import { Activity, Building2, MapPin, Phone, Shield, User, Warehouse } from "lucide-react";
+import { Activity, Building2, Phone, Shield, User, Warehouse } from "lucide-react";
 import { ROLE_LABELS } from "@/constants/app.constants";
 import { formatDate, formatDateTime } from "@/shared/utils/dateUtils";
 import { InfoList, InfoRow, ProfileCard, StatusPill } from "./ProfileCard";
-
-const titleCase = (value) => (value ? value.charAt(0) + value.slice(1).toLowerCase() : "");
 
 function PersonalInfo({ profile }) {
     return (
@@ -47,37 +45,20 @@ function RoleAndAccess({ profile }) {
     );
 }
 
-// Store managers belong to an outlet; dispatchers and loaders work out of depots. Show whatever
-// the account has, and one friendly message when it has neither.
-function WorkLocation({ outlet, depots }) {
-    const hasOutlet = Boolean(outlet);
+// Dispatchers and loaders work out of depots; show them, or one friendly message when there are none.
+function WorkLocation({ depots }) {
     const hasDepots = depots.length > 0;
 
     return (
         <ProfileCard icon={Building2} title="Work Location">
-            {!hasOutlet && !hasDepots && (
+            {!hasDepots && (
                 <p className="rounded-xl bg-muted px-4 py-6 text-center text-sm text-ink-secondary">
-                    No outlet or depot has been assigned to your account yet.
+                    No depot has been assigned to your account yet.
                 </p>
             )}
 
-            {hasOutlet && (
-                <div className="rounded-xl bg-muted p-4">
-                    <p className="text-xs font-semibold tracking-widest text-ink-secondary">OUTLET</p>
-                    <p className="mt-1 text-base font-bold text-forest">{outlet.name}</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                        <span className="rounded-md bg-surface px-2 py-1 font-mono font-semibold text-forest ring-1 ring-line">{outlet.code}</span>
-                        <span className="rounded-md bg-gold/25 px-2 py-1 font-semibold text-forest">{titleCase(outlet.brand)}</span>
-                        <span className="inline-flex items-center gap-1 text-ink-secondary">
-                            <MapPin className="size-3.5" aria-hidden="true" />
-                            {outlet.district}
-                        </span>
-                    </div>
-                </div>
-            )}
-
             {hasDepots && (
-                <div className={hasOutlet ? "mt-4" : undefined}>
+                <div>
                     <p className="mb-2 text-xs font-semibold tracking-widest text-ink-secondary">DEPOTS</p>
                     <ul className="space-y-2">
                         {depots.map((depot) => (
@@ -116,7 +97,7 @@ export default function ProfileSections({ profile }) {
         <div className="grid gap-5 lg:grid-cols-2">
             <PersonalInfo profile={profile} />
             <RoleAndAccess profile={profile} />
-            <WorkLocation outlet={profile.outlet} depots={profile.depots ?? []} />
+            <WorkLocation depots={profile.depots ?? []} />
             <AccountActivity profile={profile} />
         </div>
     );

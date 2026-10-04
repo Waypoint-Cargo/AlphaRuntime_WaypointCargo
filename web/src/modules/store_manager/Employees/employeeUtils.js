@@ -13,7 +13,5 @@ export function matchesQuery(employee, query) {
         employee.phone,
         employee.employeeNumber,
         roleLabel(employee.role),
-        employee.outlet?.name,
-        employee.outlet?.code,
     ].some((field) => field?.toLowerCase().includes(needle));
 }
