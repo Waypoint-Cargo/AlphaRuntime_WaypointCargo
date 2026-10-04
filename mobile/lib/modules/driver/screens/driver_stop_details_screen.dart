@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_style.dart';
-
-import '../models/driver_stop.dart';
+import '../../../models/driver_stop.dart';
 import 'driver_map_screen.dart';
 import 'driver_issues_screen.dart';
 

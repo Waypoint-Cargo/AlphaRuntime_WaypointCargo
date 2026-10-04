@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../modules/auth/screens/forgot_password_screen.dart';
 import '../modules/auth/screens/login_screen.dart';
 import '../modules/auth/screens/sign_up_screen.dart';
+import '../modules/driver/screens/driver_home_screen.dart';
 import '../modules/loader/home/screens/loader_home_screen.dart';
 import '../modules/loader/report_issues/screens/issue_details_screen.dart';
 import '../modules/loader/report_issues/screens/report_issue_screen.dart';
@@ -9,6 +10,8 @@ import '../modules/loader/task/screens/start_loading_screen.dart';
 import '../modules/loader/task/screens/task_details_screen.dart';
 import '../modules/loader/task/screens/task_screens.dart';
 import '../modules/loader/task/screens/verify_loading_screen.dart';
+import '../modules/profile/screens/profile_screen.dart';
+import '../modules/setting/screens/setting_screen.dart';
 
 class AppRoutes {
   static const String loaderHome = '/loader-home';
@@ -26,10 +29,12 @@ class AppRoutes {
   static const String signUp = '/sign-up';
   static const String forgotPassword = '/forgot-password';
   static const String profile = '/profile';
+  static const String settings = '/settings';
   static const String notifications = '/notifications';
 
   static Map<String, WidgetBuilder> get routes => {
         loaderHome: (context) => const LoaderHomeScreen(),
+        driverHome: (context) => const DriverHomeScreen(),
         pendingTasks: (context) => const PendingTasksScreen(),
         startLoading: (context) => const StartLoadingScreen(),
         verifyLoading: (context) => const VerifyLoadingScreen(),
@@ -42,5 +47,7 @@ class AppRoutes {
         login: (context) => const LoginScreen(),
         signUp: (context) => const SignUpScreen(),
         forgotPassword: (context) => const ForgotPasswordScreen(),
+        profile: (context) => const ProfileScreen(),
+        settings: (context) => const CommonSettingsScreen(useScaffold: true),
       };
 }

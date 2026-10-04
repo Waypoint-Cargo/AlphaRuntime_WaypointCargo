@@ -9,10 +9,13 @@ import '../../../../core/widgets/app_loading_state.dart';
 import '../../../../core/widgets/app_notice.dart';
 import '../../../../core/widgets/section_header.dart';
 import '../../../../models/loading_task.dart';
+import '../../../../providers/auth_provider.dart';
 import '../../../../providers/loader_provider.dart';
+import '../../../../routes/app_routes.dart';
 import '../../../../widgets/app_scaffold.dart';
 import '../../home/screens/loader_home_screen.dart';
 import '../../report_issues/screens/issue_details_screen.dart';
+import '../../../setting/screens/setting_screen.dart';
 import 'start_loading_screen.dart';
 import 'task_details_screen.dart';
 import '../widgets/loader_feedback.dart';
@@ -65,15 +68,19 @@ class _PendingTasksScreenState extends State<PendingTasksScreen> {
       return;
     }
 
+    if (index == 3) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const CommonSettingsScreen(useScaffold: true),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       currentIndex = index;
     });
-
-    if (index == 3) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Settings tab selected')),
-      );
-    }
   }
 
   /// "Open Task": claims the task, then opens the loading screen. If somebody
@@ -112,6 +119,20 @@ class _PendingTasksScreenState extends State<PendingTasksScreen> {
     if (mounted) loader.loadTasks();
   }
 
+  Future<void> _logout() async {
+    try {
+      final authProvider = context.read<AuthProvider>();
+      await authProvider.logout();
+    } catch (_) {}
+
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRoutes.login,
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final loader = context.watch<LoaderProvider>();
@@ -125,13 +146,9 @@ class _PendingTasksScreenState extends State<PendingTasksScreen> {
       showMenu: true,
       onMenuSelected: (value) {
         if (value == 'profile') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile selected')),
-          );
+          Navigator.pushNamed(context, AppRoutes.profile);
         } else if (value == 'logout') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Logout selected')),
-          );
+          _logout();
         }
       },
       body: Column(

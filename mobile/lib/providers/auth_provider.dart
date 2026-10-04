@@ -16,6 +16,7 @@ class AuthProvider extends ChangeNotifier {
   String? _refreshToken;
   LoginResponse? _lastLoginResponse;
   RegisterResponse? _lastRegisterResponse;
+  String? _lastForgotPasswordMessage;
   Future<String?>? _refreshInFlight;
   bool _sessionExpired = false;
 
@@ -41,6 +42,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _currentUser != null && _accessToken != null;
   LoginResponse? get lastLoginResponse => _lastLoginResponse;
   RegisterResponse? get lastRegisterResponse => _lastRegisterResponse;
+  String? get lastForgotPasswordMessage => _lastForgotPasswordMessage;
 
   /// Whether the session ended without the user asking (the server refused to
   /// renew it). Reading it resets it, so the app reacts exactly once.
@@ -54,6 +56,7 @@ class AuthProvider extends ChangeNotifier {
   void clearErrors() {
     _errorMessage = null;
     _fieldErrors = {};
+    _lastForgotPasswordMessage = null;
     notifyListeners();
   }
 
@@ -148,6 +151,39 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Sends a password reset link to the given email address.
+  ///
+  /// Calls `POST /api/auth/forgot-password`.
+  /// Returns `true` on success, or `false` on failure.
+  Future<bool> forgotPassword({required String email}) async {
+    _isLoading = true;
+    _errorMessage = null;
+    _fieldErrors = {};
+    _lastForgotPasswordMessage = null;
+    notifyListeners();
+
+    try {
+      final response = await _authService.forgotPassword(email: email);
+      _isLoading = false;
+      _lastForgotPasswordMessage = response['message'] as String? ??
+          'Password reset link sent to $email';
+      notifyListeners();
+      return true;
+    } on ApiException catch (e) {
+      _isLoading = false;
+      _errorMessage = e.message;
+      _fieldErrors = e.fieldErrors;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = 'An unexpected error occurred. Please try again.';
+      _fieldErrors = {};
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Renews the access token with the refresh token.
   ///
   /// Callers that hit 401 at the same moment share one request: a refresh
@@ -181,6 +217,19 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
       }
       return null;
+    }
+  }
+
+  /// Fetches the latest authenticated user profile from the backend.
+  Future<User?> fetchProfile() async {
+    if (_accessToken == null) return _currentUser;
+    try {
+      final user = await _authService.getProfile();
+      _currentUser = user;
+      notifyListeners();
+      return user;
+    } catch (_) {
+      return _currentUser;
     }
   }
 

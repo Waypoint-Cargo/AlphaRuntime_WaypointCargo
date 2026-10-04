@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_style.dart';
+import '../../../../providers/auth_provider.dart';
 import '../widgets/auth_brand_header.dart';
 import '../widgets/auth_text_field.dart';
 import 'login_screen.dart';
@@ -23,39 +25,65 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     super.dispose();
   }
 
-  void _onSendResetLink() {
+  Future<void> _onSendResetLink() async {
+    FocusScope.of(context).unfocus();
+
     if (_formKey.currentState?.validate() ?? false) {
       setState(() {
         _isLoading = true;
       });
 
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
+      final email = _emailController.text.trim();
+      final authProvider = context.read<AuthProvider>();
+      authProvider.clearErrors();
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Password reset link sent to ${_emailController.text.trim()}',
-              ),
-              backgroundColor: AppColors.success,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          );
+      final success = await authProvider.forgotPassword(email: email);
 
-          // Return to login after sending
-          Future.delayed(const Duration(seconds: 1), () {
-            if (mounted) {
-              _onBackToSignIn();
-            }
-          });
-        }
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
       });
+
+      if (success) {
+        final message = authProvider.lastForgotPasswordMessage ??
+            'Password reset link sent to $email';
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+
+        // Return to login after sending
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted) {
+            _onBackToSignIn();
+          }
+        });
+      } else {
+        String errorMessage = authProvider.errorMessage ??
+            'Failed to send reset link. Please try again.';
+        if (authProvider.fieldErrors.isNotEmpty) {
+          errorMessage = authProvider.fieldErrors.values.first;
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
     }
   }
 

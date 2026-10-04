@@ -187,4 +187,23 @@ class AuthService {
     );
     return RegisterResponse.fromJson(response);
   }
+
+  /// Fetches the currently authenticated user profile from `GET /api/auth/me`.
+  Future<User> getProfile() async {
+    final response = await _apiService.get(ApiConstants.authMe);
+    final data = response['data'] as Map<String, dynamic>?;
+    final userData = data != null
+        ? (data['user'] as Map<String, dynamic>? ?? data)
+        : (response['user'] as Map<String, dynamic>? ?? response);
+    return User.fromJson(userData);
+  }
+
+  /// Requests a password reset link for the given email via `POST /api/auth/forgot-password`.
+  Future<Map<String, dynamic>> forgotPassword({required String email}) async {
+    final response = await _apiService.post(
+      ApiConstants.authForgotPassword,
+      body: {'email': email.trim()},
+    );
+    return response;
+  }
 }

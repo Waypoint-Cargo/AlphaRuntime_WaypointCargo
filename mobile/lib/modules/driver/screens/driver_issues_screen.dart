@@ -60,7 +60,7 @@ class DriverIssuesScreen extends StatelessWidget {
                     const SizedBox(height: 18),
 
                     DropdownButtonFormField<String>(
-                      value: selectedType,
+                      initialValue: selectedType,
                       decoration: const InputDecoration(
                         labelText: 'Issue Type',
                         prefixIcon: Icon(Icons.warning_amber_outlined),
