@@ -1,13 +1,13 @@
-import { prisma } from "../../config/database.js";
+import { getPrisma } from "../../config/database.js";
 
 export async function saveLocationPing(data) {
-    return prisma.locationPing.create({
+    return getPrisma().locationPing.create({
         data
     });
 }
 
 export async function getActiveTrips() {
-    return prisma.trip.findMany({
+    return getPrisma().trip.findMany({
         where: {
             status: {
                 in: ["LOADING", "LOADED", "IN_TRANSIT"]
@@ -31,7 +31,7 @@ export async function getActiveTrips() {
 }
 
 export async function getTripHistory(tripId) {
-    return prisma.locationPing.findMany({
+    return getPrisma().locationPing.findMany({
         where: { tripId },
         orderBy: { recordedAt: "asc" }
     });
