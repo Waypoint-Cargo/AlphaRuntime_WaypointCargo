@@ -4,14 +4,18 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, KeyRound, Mail } from "lucide-react";
 
+import { getApiErrorMessage } from "@/shared/utils/apiError";
+import { ROUTES } from "@/constants/app.constants";
 import AuthLayout, { Logo } from "../components/AuthLayout";
+import FormAlert from "../components/FormAlert";
 import IconInput from "../components/IconInput";
+import { useForgotPasswordMutation } from "../api/authApi";
 import { forgotPasswordSchema } from "../validation/auth.schemas";
 
 function BackToSignIn() {
     return (
         <Link
-            to="/login"
+            to={ROUTES.LOGIN}
             className="flex items-center justify-center gap-2 text-sm font-semibold text-brand hover:underline"
         >
             <ArrowLeft className="size-4" />
@@ -23,6 +27,8 @@ function BackToSignIn() {
 export default function ForgotPasswordPage() {
     // Empty = show the form. Filled = show the "check your email" message.
     const [sentTo, setSentTo] = useState("");
+    const [serverError, setServerError] = useState("");
+    const [forgotPassword] = useForgotPasswordMutation();
 
     const {
         register,
@@ -35,7 +41,17 @@ export default function ForgotPasswordPage() {
     });
 
     const onSubmit = async (values) => {
-        // TODO: call the real "forgot password" API here later
+        setServerError("");
+
+        const result = await forgotPassword({ email: values.email });
+
+        if (result.error) {
+            // e.g. 429 after 3 requests in 15 minutes
+            setServerError(getApiErrorMessage(result.error, "Unable to send the reset link. Please try again."));
+            return;
+        }
+
+        // The backend answers the same way whether or not the account exists
         setSentTo(values.email);
     };
 
@@ -49,13 +65,15 @@ export default function ForgotPasswordPage() {
                     </div>
                     <h1 className="text-3xl font-extrabold text-forest">Check your email</h1>
                     <p className="mt-2 text-sm text-ink-secondary">
-                        We've sent a password reset link to
+                        If an account exists for
                         <br />
                         <span className="font-semibold text-forest">{sentTo}</span>
+                        <br />
+                        we've sent a password reset link.
                     </p>
 
                     <Link
-                        to="/login"
+                        to={ROUTES.LOGIN}
                         className="mt-8 w-full rounded-xl bg-brand py-3 text-sm font-semibold text-white shadow-lg shadow-brand/30 transition hover:brightness-110"
                     >
                         Back to Sign In
@@ -93,6 +111,8 @@ export default function ForgotPasswordPage() {
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
+                {serverError && <FormAlert>{serverError}</FormAlert>}
+
                 <div>
                     <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-forest">
                         Work email

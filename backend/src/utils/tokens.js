@@ -5,7 +5,7 @@ import { config } from '../config/env.js';
 // signs a new access token containing the user info 
 export const signAccessToken = (user) => {
     return jwt.sign(
-        { sub: user.id, username: user.username, role: user.role },
+        { sub: user.id, employeeNumber: user.employeeNumber, fullName: user.fullName, role: user.role },
         config.accessTokenSecret,
         { expiresIn: config.accessTokenExpiry }
     )
@@ -13,17 +13,20 @@ export const signAccessToken = (user) => {
 
 // signs a new refresh token containing the user's id and the token's DB family.
 // the family allows us to group all rotations from the same login session.
+// jwtid makes every token unique: without it two tokens signed for the same user in the same
+// second are byte-identical, so rotating twice within a second hit the unique tokenHash column
+// (500) and ended the session.
 export const signRefreshToken = (user, family) => {
     return jwt.sign(
-        { sub: user.id, username: user.username, family },
+        { sub: user.id, employeeNumber: user.employeeNumber, fullName: user.fullName, family },
         config.refreshTokenSecret,
-        { expiresIn: config.refreshTokenExpiry }
+        { expiresIn: config.refreshTokenExpiry, jwtid: crypto.randomUUID() }
     )
 }
 
 // verify access token 
-export const verifyAccessToken = (token) => {
-    return jwt.verify(token, config.accessTokenSecret)
+export const verifyAccessToken = (token, options = {}) => {
+    return jwt.verify(token, config.accessTokenSecret, options)
 }
 
 // verify refresh token 

@@ -1,31 +1,47 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "react-router-dom";
-import { z } from "zod";
 import { User } from "lucide-react";
 
+import { useAppSelector } from "@/store/hooks";
+import { getApiErrorMessage } from "@/shared/utils/apiError";
+import { ROUTES } from "@/constants/app.constants";
 import AuthLayout, { Logo } from "../components/AuthLayout";
+import FormAlert from "../components/FormAlert";
 import IconInput from "../components/IconInput";
 import PasswordInput from "../components/PasswordInput";
+import { useLoginMutation } from "../api/authApi";
+import { selectSessionExpired } from "../slices/authSlice";
 import { loginSchema } from "../validation/auth.schemas";
 
-// Your existing login rules + the "keep me signed in" checkbox
-const loginFormSchema = loginSchema.extend({ remember: z.boolean() });
-
 export default function LoginPage() {
+    const [login] = useLoginMutation();
+    const sessionExpired = useAppSelector(selectSessionExpired);
+    const [serverError, setServerError] = useState("");
+
     const {
         register,
         handleSubmit,
+        resetField,
         formState: { errors, isSubmitting },
     } = useForm({
-        resolver: zodResolver(loginFormSchema),
+        resolver: zodResolver(loginSchema),
         mode: "onTouched",
-        defaultValues: { username: "", password: "", remember: false },
+        defaultValues: { identifier: "", password: "" },
     });
 
     const onSubmit = async (values) => {
-        // TODO: call the real login API here later
-        console.log("login payload", { username: values.username, remember: values.remember });
+        setServerError("");
+
+        const result = await login({ identifier: values.identifier, password: values.password });
+
+        if (result.error) {
+            setServerError(getApiErrorMessage(result.error, "Unable to sign in. Please try again."));
+            resetField("password");
+        }
+        // On success the auth state now holds the user and <GuestRoute> redirects
+        // to the right dashboard for their role — nothing to do here.
     };
 
     return (
@@ -42,19 +58,24 @@ export default function LoginPage() {
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
+                {sessionExpired && !serverError && (
+                    <FormAlert type="info">Your session has expired. Please sign in again.</FormAlert>
+                )}
+                {serverError && <FormAlert>{serverError}</FormAlert>}
+
                 <div>
-                    <label htmlFor="username" className="mb-1.5 block text-sm font-medium text-forest">
-                        Employee Number
+                    <label htmlFor="identifier" className="mb-1.5 block text-sm font-medium text-forest">
+                        Employee Number or Email
                     </label>
                     <IconInput
-                        id="username"
+                        id="identifier"
                         icon={User}
-                        placeholder="emp_001_2026"
+                        placeholder="man_001 or you@company.com"
                         autoComplete="username"
-                        error={errors.username}
-                        {...register("username")}
+                        error={errors.identifier}
+                        {...register("identifier")}
                     />
-                    {errors.username && <p className="mt-1 text-xs text-error">{errors.username.message}</p>}
+                    {errors.identifier && <p className="mt-1 text-xs text-error">{errors.identifier.message}</p>}
                 </div>
 
                 <div>
@@ -62,7 +83,7 @@ export default function LoginPage() {
                         <label htmlFor="password" className="text-sm font-medium text-forest">
                             Password
                         </label>
-                        <Link to="/forgot-password" className="text-sm font-semibold text-brand hover:underline">
+                        <Link to={ROUTES.FORGOT_PASSWORD} className="text-sm font-semibold text-brand hover:underline">
                             Forgot password?
                         </Link>
                     </div>
@@ -75,11 +96,6 @@ export default function LoginPage() {
                     />
                     {errors.password && <p className="mt-1 text-xs text-error">{errors.password.message}</p>}
                 </div>
-
-                <label className="flex items-center gap-2 text-sm text-ink-secondary">
-                    <input type="checkbox" className="size-4 rounded accent-brand" {...register("remember")} />
-                    Keep me signed in for 30 days
-                </label>
 
                 <button
                     type="submit"
@@ -97,7 +113,7 @@ export default function LoginPage() {
 
                 <p className="text-center text-sm text-ink-secondary">
                     Don't have an account?{" "}
-                    <Link to="/register" className="font-semibold text-brand hover:underline">
+                    <Link to={ROUTES.REGISTER} className="font-semibold text-brand hover:underline">
                         Create Account
                     </Link>
                 </p>

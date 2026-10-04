@@ -4,18 +4,19 @@ export {
    restoreSession,
    setCredentials,
    logout,
+   sessionExpired,
    updateUser,
    selectUser,
+   selectUserRole,
    selectIsInitialized,
-   selectIsAdmin,
    selectIsAuthenticated,
+   selectSessionExpired,
 } from './slices/authSlice';
 
 // API
 export {
    authApi,
    useLoginMutation,
-   useGoogleSignInMutation,
    useRegisterMutation,
    useLogoutMutation,
    useLogoutAllMutation,
@@ -26,7 +27,7 @@ export {
 // Validation
 export {
    loginSchema,
-   registerSchema,
+   registerAccountSchema,
    forgotPasswordSchema,
    resetPasswordSchema,
    getPasswordStrength,
@@ -34,3 +35,4 @@ export {
 
 // Hooks
 export { usePasswordVisibility } from './hooks/useAuthForm';
+export { useLogout } from './hooks/useLogout';

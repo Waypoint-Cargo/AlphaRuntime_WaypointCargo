@@ -1,13 +1,21 @@
+import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "react-router-dom";
 import { ArrowRight, CheckCircle2, ChevronDown, Mail, Phone, User, Users } from "lucide-react";
 
+import { getApiErrorMessage, getApiFieldErrors } from "@/shared/utils/apiError";
+import { ROUTES } from "@/constants/app.constants";
 import AuthLayout, { Logo } from "../components/AuthLayout";
+import FormAlert from "../components/FormAlert";
 import IconInput, { inputClasses } from "../components/IconInput";
 import PasswordInput from "../components/PasswordInput";
 import PasswordStrength from "../components/PasswordStrength";
+import { useRegisterMutation } from "../api/authApi";
 import { registerAccountSchema, ROLE_OPTIONS } from "../validation/auth.schemas";
+
+// request fields that have an input on this form (so a 422 can be shown under it)
+const FORM_FIELDS = ["fullName", "email", "phone", "password", "role"];
 
 // A label on top, the input in the middle, an error message underneath
 function Field({ id, label, error, children }) {
@@ -23,10 +31,16 @@ function Field({ id, label, error, children }) {
 }
 
 export default function RegisterPage() {
-        const {
+    const [registerAccount] = useRegisterMutation();
+    const [serverError, setServerError] = useState("");
+    // Filled once the backend accepts the registration (it still needs admin approval)
+    const [registeredMessage, setRegisteredMessage] = useState("");
+
+    const {
         register,
         handleSubmit,
         control,
+        setError,
         formState: { errors, isSubmitting },
     } = useForm({
         resolver: zodResolver(registerAccountSchema),
@@ -55,9 +69,54 @@ export default function RegisterPage() {
             password: values.password,
             role: values.role,
         };
-        // TODO: call the real register API here later
-        console.log("register payload", payload);
+        setServerError("");
+
+        const result = await registerAccount(payload);
+
+        if (result.error) {
+            const { error } = result;
+            const fieldErrors = getApiFieldErrors(error);
+            const fields = Object.keys(fieldErrors).filter((field) => FORM_FIELDS.includes(field));
+
+            if (error.status === 409) {
+                // "Email already in use."
+                setError("email", { message: error.data?.message ?? "Email already in use." });
+            } else if (fields.length) {
+                // 422 from the backend validator — show each message under its field
+                fields.forEach((field) => setError(field, { message: fieldErrors[field] }));
+            } else {
+                setServerError(getApiErrorMessage(error, "Unable to create your account. Please try again."));
+            }
+            return;
+        }
+
+        setRegisteredMessage(
+            result.data?.message ??
+                "Registration received. An administrator must approve your account before you can sign in.",
+        );
     };
+
+    // Screen 2: registration accepted, waiting for approval
+    if (registeredMessage) {
+        return (
+            <AuthLayout>
+                <div className="flex flex-col items-center text-center">
+                    <div className="mb-4 grid size-14 place-items-center rounded-2xl bg-success-light text-success">
+                        <CheckCircle2 className="size-7" />
+                    </div>
+                    <h1 className="text-3xl font-extrabold text-forest">Registration received</h1>
+                    <p className="mt-2 text-sm text-ink-secondary">{registeredMessage}</p>
+
+                    <Link
+                        to={ROUTES.LOGIN}
+                        className="mt-8 w-full rounded-xl bg-brand py-3 text-sm font-semibold text-white shadow-lg shadow-brand/30 transition hover:brightness-110"
+                    >
+                        Back to Sign In
+                    </Link>
+                </div>
+            </AuthLayout>
+        );
+    }
 
     return (
         <AuthLayout>
@@ -77,6 +136,8 @@ export default function RegisterPage() {
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+                {serverError && <FormAlert>{serverError}</FormAlert>}
+
                 <Field id="fullName" label="Full name" error={errors.fullName?.message}>
                     <IconInput
                         id="fullName"
@@ -221,7 +282,7 @@ export default function RegisterPage() {
 
                 <p className="text-center text-sm text-ink-secondary">
                     Already have an account?{" "}
-                    <Link to="/login" className="font-semibold text-forest hover:underline">
+                    <Link to={ROUTES.LOGIN} className="font-semibold text-forest hover:underline">
                         Sign In
                     </Link>
                 </p>
