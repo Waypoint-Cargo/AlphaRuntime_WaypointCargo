@@ -1,9 +1,19 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:mobile/app.dart';
+import 'package:mobile/core/services/api_service.dart';
 import 'package:mobile/core/theme/app_theme.dart';
+import 'package:mobile/modules/driver/screens/driver_home_screen.dart';
 import 'package:mobile/modules/loader/home/screens/loader_home_screen.dart';
+import 'package:mobile/modules/loader/report_issues/screens/issue_details_screen.dart';
+import 'package:mobile/modules/loader/task/screens/task_screens.dart';
+import 'package:mobile/providers/auth_provider.dart';
+import 'package:mobile/providers/loader_provider.dart';
 import 'package:mobile/routes/app_routes.dart';
+import 'package:provider/provider.dart';
 
 void main() {
   testWidgets('WaypointCargoApp starts on LoginScreen and renders logo, form, and validation', (WidgetTester tester) async {
@@ -130,7 +140,23 @@ void main() {
     tester.view.devicePixelRatio = 2.0;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(const WaypointCargoApp());
+    final mockClient = MockClient((request) async {
+      if (request.url.path.endsWith('/auth/forgot-password')) {
+        return http.Response(
+          jsonEncode({
+            'success': true,
+            'message': 'Password reset link sent to driver@waypoint.com',
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      return http.Response('Not Found', 404);
+    });
+
+    final auth = AuthProvider(apiService: ApiService(client: mockClient));
+
+    await tester.pumpWidget(WaypointCargoApp(authProvider: auth));
     await tester.pumpAndSettle();
 
     // Tap 'Forgot password?' on LoginScreen
@@ -162,7 +188,356 @@ void main() {
     // Verify back on LoginScreen
     expect(find.text('Welcome back'), findsOneWidget);
   });
+
+  testWidgets('Loader menu navigates to ProfileScreen with app header, nav bar, and section header', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.reset);
+
+    final auth = AuthProvider();
+    final loader = LoaderProvider(apiService: auth.apiService);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<AuthProvider>.value(value: auth),
+          ChangeNotifierProvider<LoaderProvider>.value(value: loader),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const LoaderHomeScreen(),
+          routes: AppRoutes.routes,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap the 3-line menu icon in the AppBar
+    final menuButtonFinder = find.byIcon(Icons.menu);
+    expect(menuButtonFinder, findsOneWidget);
+    await tester.tap(menuButtonFinder);
+    await tester.pumpAndSettle();
+
+    // Verify Popup menu with Profile and Logout
+    expect(find.text('Profile'), findsOneWidget);
+    expect(find.text('Logout'), findsOneWidget);
+
+    // Tap 'Profile'
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+
+    // Verify App Header
+    expect(find.text('Waypoint Cargo'), findsOneWidget);
+    expect(find.text('Plan | Deliver | Stay Connected'), findsOneWidget);
+
+    // Verify Section Header
+    expect(find.text('Profile'), findsOneWidget);
+    expect(find.byIcon(Icons.person_outline), findsOneWidget);
+
+    // Verify Bottom Nav Bar
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Tasks'), findsOneWidget);
+    expect(find.text('Issues'), findsOneWidget);
+    expect(find.text('Settings'), findsOneWidget);
+
+    // Verify Account Details Card
+    expect(find.text('Account Details'), findsOneWidget);
+    expect(find.text('Full Name'), findsOneWidget);
+    expect(find.text('Work Email'), findsOneWidget);
+    expect(find.text('Phone Number'), findsOneWidget);
+    expect(find.text('Employee ID'), findsOneWidget);
+    expect(find.text('Assigned Role'), findsOneWidget);
+    expect(find.text('Account Status'), findsOneWidget);
+    expect(find.text('Active'), findsOneWidget);
+
+    // Verify Preferences and Support section & Sign Out button are removed
+    expect(find.text('Preferences & Support'), findsNothing);
+    expect(find.text('Push Notifications'), findsNothing);
+    expect(find.text('Help & Support'), findsNothing);
+    expect(find.text('App Version'), findsNothing);
+    expect(find.text('Sign Out'), findsNothing);
+
+    // Tap 'Home' nav item to return to LoaderHomeScreen
+    await tester.tap(find.text('Home'));
+    await tester.pumpAndSettle();
+
+    // Verify returned to LoaderHomeScreen
+    expect(find.byType(LoaderHomeScreen), findsOneWidget);
+    expect(find.text('Account Details'), findsNothing);
+  });
+
+  testWidgets('Driver bottom navigation bar navigates to ProfileScreen on tapping Profile tab', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.reset);
+
+    final auth = AuthProvider();
+    final loader = LoaderProvider(apiService: auth.apiService);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<AuthProvider>.value(value: auth),
+          ChangeNotifierProvider<LoaderProvider>.value(value: loader),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const DriverHomeScreen(),
+          routes: AppRoutes.routes,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify initially on Driver Overview
+    expect(find.text("Today's Overview"), findsOneWidget);
+
+    // Tap 'Profile' tab in bottom navigation bar
+    final profileTabFinder = find.text('Profile');
+    expect(profileTabFinder, findsOneWidget);
+    await tester.tap(profileTabFinder);
+    await tester.pumpAndSettle();
+
+    // Verify App Header on ProfileScreen
+    expect(find.text('Waypoint Cargo'), findsOneWidget);
+    expect(find.text('Plan | Deliver | Stay Connected'), findsOneWidget);
+
+    // Verify Section Header
+    expect(find.text('Profile'), findsOneWidget);
+    expect(find.byIcon(Icons.person_outline), findsOneWidget);
+
+    // Verify ProfileScreen rendered
+    expect(find.text("Today's Overview"), findsNothing);
+    expect(find.text('Account Details'), findsOneWidget);
+    expect(find.text('Preferences & Support'), findsNothing);
+    expect(find.text('Sign Out'), findsNothing);
+
+    // Tap 'Home' tab to return to Driver Overview
+    await tester.tap(find.text('Home'));
+    await tester.pumpAndSettle();
+
+    expect(find.text("Today's Overview"), findsOneWidget);
+    expect(find.text('Account Details'), findsNothing);
+  });
+
+  testWidgets('PendingTasksScreen menu navigates to ProfileScreen on tapping Profile', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.reset);
+
+    final auth = AuthProvider();
+    final loader = LoaderProvider(apiService: auth.apiService);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<AuthProvider>.value(value: auth),
+          ChangeNotifierProvider<LoaderProvider>.value(value: loader),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const PendingTasksScreen(),
+          routes: AppRoutes.routes,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap the menu button in the app bar
+    final menuButtonFinder = find.byIcon(Icons.menu);
+    expect(menuButtonFinder, findsOneWidget);
+    await tester.tap(menuButtonFinder);
+    await tester.pumpAndSettle();
+
+    // Tap 'Profile'
+    expect(find.text('Profile'), findsOneWidget);
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+
+    // Verify ProfileScreen rendered
+    expect(find.text('Account Details'), findsOneWidget);
+  });
+
+  testWidgets('IssueDetailsScreen menu navigates to ProfileScreen on tapping Profile', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.reset);
+
+    final auth = AuthProvider();
+    final loader = LoaderProvider(apiService: auth.apiService);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<AuthProvider>.value(value: auth),
+          ChangeNotifierProvider<LoaderProvider>.value(value: loader),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const IssueDetailsScreen(),
+          routes: AppRoutes.routes,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap the menu button in the app bar
+    final menuButtonFinder = find.byIcon(Icons.menu);
+    expect(menuButtonFinder, findsOneWidget);
+    await tester.tap(menuButtonFinder);
+    await tester.pumpAndSettle();
+
+    // Tap 'Profile'
+    expect(find.text('Profile'), findsOneWidget);
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+
+    // Verify ProfileScreen rendered
+    expect(find.text('Account Details'), findsOneWidget);
+  });
+
+  testWidgets('Driver bottom navigation bar switches to Settings screen with Change Password and Logout', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.reset);
+
+    final auth = AuthProvider();
+    final loader = LoaderProvider(apiService: auth.apiService);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<AuthProvider>.value(value: auth),
+          ChangeNotifierProvider<LoaderProvider>.value(value: loader),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const DriverHomeScreen(),
+          routes: AppRoutes.routes,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap 'Settings' in bottom navigation bar
+    final settingsNavFinder = find.text('Settings');
+    expect(settingsNavFinder, findsOneWidget);
+    await tester.tap(settingsNavFinder);
+    await tester.pumpAndSettle();
+
+    // Verify Settings Screen rendered
+    expect(find.text('Account'), findsOneWidget);
+    expect(find.text('Change Password'), findsOneWidget);
+    expect(find.text('Preferences'), findsOneWidget);
+    expect(find.text('About Waypoint Cargo'), findsOneWidget);
+    expect(find.text('App Version'), findsOneWidget);
+
+    // Profile tile is removed from settings
+    expect(find.widgetWithText(ListTile, 'Profile'), findsNothing);
+
+    // Logout button is present for driver
+    expect(find.widgetWithText(OutlinedButton, 'Logout'), findsOneWidget);
+
+    // Tap 'Change Password' tile in settings
+    final changePwTileFinder = find.widgetWithText(ListTile, 'Change Password');
+    expect(changePwTileFinder, findsOneWidget);
+    await tester.tap(changePwTileFinder);
+    await tester.pumpAndSettle();
+
+    // Verify navigated to ForgotPasswordScreen
+    expect(find.text('Forgot your password?'), findsOneWidget);
+  });
+
+  testWidgets('Loader bottom navigation bar opens Settings screen without Profile tile and without Logout button', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.reset);
+
+    final auth = AuthProvider();
+    final loader = LoaderProvider(apiService: auth.apiService);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<AuthProvider>.value(value: auth),
+          ChangeNotifierProvider<LoaderProvider>.value(value: loader),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const LoaderHomeScreen(),
+          routes: AppRoutes.routes,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap 'Settings' in bottom navigation bar
+    final settingsNavFinder = find.text('Settings');
+    expect(settingsNavFinder, findsOneWidget);
+    await tester.tap(settingsNavFinder);
+    await tester.pumpAndSettle();
+
+    // Verify Settings Screen rendered
+    expect(find.text('Account'), findsOneWidget);
+    expect(find.text('Change Password'), findsOneWidget);
+
+    // Profile tile is removed from settings
+    expect(find.widgetWithText(ListTile, 'Profile'), findsNothing);
+
+    // Logout button is NOT present for loader (loader logs out via top menu)
+    expect(find.widgetWithText(OutlinedButton, 'Logout'), findsNothing);
+
+    // Tap 'Change Password' tile in settings
+    final changePwTileFinder = find.widgetWithText(ListTile, 'Change Password');
+    expect(changePwTileFinder, findsOneWidget);
+    await tester.tap(changePwTileFinder);
+    await tester.pumpAndSettle();
+
+    // Verify navigated to ForgotPasswordScreen
+    expect(find.text('Forgot your password?'), findsOneWidget);
+  });
+
+  testWidgets('ForgotPasswordScreen displays error message on API failure', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.reset);
+
+    final mockClient = MockClient((request) async {
+      if (request.url.path.endsWith('/auth/forgot-password')) {
+        return http.Response(
+          jsonEncode({
+            'success': false,
+            'message': 'No account found with this email address.',
+          }),
+          404,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      return http.Response('Not Found', 404);
+    });
+
+    final auth = AuthProvider(apiService: ApiService(client: mockClient));
+
+    await tester.pumpWidget(WaypointCargoApp(authProvider: auth));
+    await tester.pumpAndSettle();
+
+    // Navigate to ForgotPasswordScreen
+    await tester.tap(find.text('Forgot password?'));
+    await tester.pumpAndSettle();
+
+    // Enter email address
+    await tester.enterText(find.widgetWithText(TextFormField, 'you@company.com'), 'unknown@waypoint.com');
+    await tester.pumpAndSettle();
+
+    // Tap 'Send Reset Link'
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Send Reset Link'));
+    await tester.pumpAndSettle();
+
+    // Verify Error SnackBar is displayed
+    expect(find.text('No account found with this email address.'), findsOneWidget);
+  });
 }
+
 
 
 

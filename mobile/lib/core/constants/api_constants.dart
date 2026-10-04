@@ -16,6 +16,8 @@ class ApiConstants {
   static const String authLogin = '/auth/login';
   static const String authLogout = '/auth/logout';
   static const String authRefresh = '/auth/refresh';
+  static const String authMe = '/auth/me';
+  static const String authForgotPassword = '/auth/forgot-password';
 
   // Loader endpoints (a loading task is identified by its trip id)
   static const String loadingSummary = '/loading/summary';

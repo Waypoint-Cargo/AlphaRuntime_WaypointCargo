@@ -12,6 +12,7 @@ import '../../../../providers/loader_provider.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../../widgets/app_scaffold.dart';
 import '../../report_issues/screens/issue_details_screen.dart';
+import '../../../setting/screens/setting_screen.dart';
 import '../../task/screens/start_loading_screen.dart';
 import '../../task/screens/task_screens.dart';
 import '../../task/widgets/loader_feedback.dart';
@@ -94,15 +95,26 @@ class _LoaderHomeScreenState extends State<LoaderHomeScreen> {
       return;
     }
 
+    if (index == 3) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const CommonSettingsScreen(useScaffold: true),
+        ),
+      ).then((_) {
+        if (mounted) {
+          setState(() {
+            currentIndex = 0;
+          });
+          _reloadSummary();
+        }
+      });
+      return;
+    }
+
     setState(() {
       currentIndex = index;
     });
-
-    if (index == 3) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Settings tab selected')),
-      );
-    }
   }
 
   void _navigateToPendingTasks() {
@@ -143,9 +155,7 @@ class _LoaderHomeScreenState extends State<LoaderHomeScreen> {
       showMenu: true,
       onMenuSelected: (value) {
         if (value == 'profile') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile selected')),
-          );
+          Navigator.pushNamed(context, AppRoutes.profile);
         } else if (value == 'logout') {
           _logout();
         }

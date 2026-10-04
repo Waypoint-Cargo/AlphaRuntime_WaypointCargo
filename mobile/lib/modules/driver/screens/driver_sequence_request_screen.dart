@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_style.dart';
 
-import '../models/driver_stop.dart';
+import '../../../models/driver_stop.dart';
 
 class DriverSequenceRequestScreen
     extends StatefulWidget {
@@ -69,7 +69,7 @@ class _DriverSequenceRequestScreenState
             const SizedBox(height: 8),
 
             DropdownButtonFormField<String>(
-              value: reason,
+              initialValue: reason,
               decoration: const InputDecoration(
                 prefixIcon:
                     Icon(Icons.warning_amber_outlined),

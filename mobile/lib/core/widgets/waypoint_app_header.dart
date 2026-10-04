@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../routes/app_routes.dart';
 import '../theme/app_colors.dart';
 
 class WaypointAppHeader extends StatelessWidget
@@ -20,6 +23,22 @@ class WaypointAppHeader extends StatelessWidget
 
   @override
   Size get preferredSize => const Size.fromHeight(72);
+
+  void _defaultMenuHandler(BuildContext context, String value) {
+    if (value == 'profile') {
+      Navigator.pushNamed(context, AppRoutes.profile);
+    } else if (value == 'logout') {
+      try {
+        final auth = context.read<AuthProvider>();
+        auth.logout();
+      } catch (_) {}
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.login,
+        (route) => false,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +75,7 @@ class WaypointAppHeader extends StatelessWidget
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: AppColors.white.withOpacity(0.75),
+                    color: AppColors.white.withValues(alpha: 0.75),
                     fontSize: 9,
                   ),
                 ),
@@ -73,7 +92,13 @@ class WaypointAppHeader extends StatelessWidget
           ),
           if (showMenu)
             PopupMenuButton<String>(
-              onSelected: onMenuSelected,
+              onSelected: (value) {
+                if (onMenuSelected != null) {
+                  onMenuSelected!(value);
+                } else {
+                  _defaultMenuHandler(context, value);
+                }
+              },
               icon: const Icon(Icons.menu, color: AppColors.white, size: 23),
               color: AppColors.white,
               position: PopupMenuPosition.under,

@@ -3,11 +3,12 @@ import '../../../../core/constants/role_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_style.dart';
-import '/widgets/app_scaffold.dart';
-import '../models/driver_stop.dart';
+import '../../../../widgets/app_scaffold.dart';
+import '../../profile/screens/profile_screen.dart';
+import '../../setting/screens/setting_screen.dart';
+import '../../../models/driver_stop.dart';
 import '../screens/driver_route_screen.dart';
 import '../screens/driver_issues_screen.dart';
-import '../screens/driver_delivery_screen.dart';
 
 class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({super.key});
@@ -30,6 +31,20 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       navItems: RoleNavigation.driverItems,
 
       onNavTap: (index) {
+        if (index == 2) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ProfileScreen()),
+          ).then((_) {
+            if (mounted) {
+              setState(() {
+                currentIndex = 0;
+              });
+            }
+          });
+          return;
+        }
+
         setState(() {
           currentIndex = index;
         });
@@ -38,7 +53,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       onNotificationTap: () {
         // Notifications screen can be added later.
       },
-
       body: _navigationBody(),
     );
   }
@@ -52,40 +66,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         return const DriverIssuesScreen(showHeader: true);
 
       case 2:
-        return _comingSoonScreen('Driver Profile');
+        return const ProfileScreen();
 
       case 3:
-        return const Center(child: Text('Open Common Settings Screen'));
+        return const CommonSettingsScreen();
 
       default:
         return _homeBody();
     }
-  }
-
-  Widget _comingSoonScreen(String title) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.construction_outlined,
-              size: 42,
-              color: AppColors.deepForestGreen,
-            ),
-            const SizedBox(height: 12),
-            Text(title, style: AppTextStyles.heading2),
-            const SizedBox(height: 6),
-            const Text(
-              'This section is not available yet.',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodySmall,
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _homeBody() {

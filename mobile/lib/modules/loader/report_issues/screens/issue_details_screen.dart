@@ -8,9 +8,12 @@ import '../../../../core/widgets/app_loading_state.dart';
 import '../../../../core/widgets/app_notice.dart';
 import '../../../../core/widgets/section_header.dart';
 import '../../../../models/loading_issue.dart';
+import '../../../../providers/auth_provider.dart';
 import '../../../../providers/loader_provider.dart';
+import '../../../../routes/app_routes.dart';
 import '../../../../widgets/app_scaffold.dart';
 import '../../home/screens/loader_home_screen.dart';
+import '../../../setting/screens/setting_screen.dart';
 import '../../task/screens/task_screens.dart';
 import '../widgets/no_issues_empty_state.dart';
 import '../widgets/reported_issue_card.dart';
@@ -56,15 +59,33 @@ class _IssueDetailsScreenState extends State<IssueDetailsScreen> {
       return;
     }
 
+    if (index == 3) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const CommonSettingsScreen(useScaffold: true),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       currentIndex = index;
     });
+  }
 
-    if (index == 3) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Settings tab selected')),
-      );
-    }
+  Future<void> _logout() async {
+    try {
+      final authProvider = context.read<AuthProvider>();
+      await authProvider.logout();
+    } catch (_) {}
+
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRoutes.login,
+      (route) => false,
+    );
   }
 
   @override
@@ -80,13 +101,9 @@ class _IssueDetailsScreenState extends State<IssueDetailsScreen> {
       showMenu: true,
       onMenuSelected: (value) {
         if (value == 'profile') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile selected')),
-          );
+          Navigator.pushNamed(context, AppRoutes.profile);
         } else if (value == 'logout') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Logout selected')),
-          );
+          _logout();
         }
       },
       body: Column(

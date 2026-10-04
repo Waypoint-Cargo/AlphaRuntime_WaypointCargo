@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_style.dart';
-import '../models/driver_stop.dart';
+import '../../../models/driver_stop.dart';
 import '../../driver/widgets/delivery_checklist.dart';
 import '../../driver/widgets/delivery_info_card.dart';
 import 'driver_delivery_complete_screen.dart';
