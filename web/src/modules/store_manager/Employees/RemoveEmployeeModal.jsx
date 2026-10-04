@@ -2,7 +2,7 @@ import { useState } from "react";
 import { getApiErrorMessage } from "@/shared/utils/apiError";
 import { useDeleteEmployeeMutation } from "./employeesApi";
 import { roleLabel } from "./employeeUtils";
-import { useEscapeKey } from "./useEscapeKey";
+import { useEscapeKey } from "@/shared/hooks/useEscapeKey";
 
 // The API has a single DELETE, used both to reject a pending registration and to remove an
 // approved employee — only the wording differs.

@@ -5,6 +5,7 @@ import { authApi } from "@/modules/auth/api/authApi";
 import { ordersApi } from "@/modules/store_manager/Orders/ordersApi";
 import { employeesApi } from "@/modules/store_manager/Employees/employeesApi";
 import { profileApi } from "@/modules/profile/api/profileApi";
+import { fleetApi } from "@/modules/dispatcher/fleet/fleetApi";
 
 // When a session ends (logout, logout-all, refresh token rejected) wipe every RTK Query
 // cache, so the next person to sign in never sees the previous user's data.
@@ -17,6 +18,7 @@ sessionListener.startListening({
         dispatch(ordersApi.util.resetApiState());
         dispatch(employeesApi.util.resetApiState());
         dispatch(profileApi.util.resetApiState());
+        dispatch(fleetApi.util.resetApiState());
     },
 });
 
@@ -28,9 +30,16 @@ export const store = configureStore({
         [ordersApi.reducerPath]: ordersApi.reducer,
         [employeesApi.reducerPath]: employeesApi.reducer,
         [profileApi.reducerPath]: profileApi.reducer,
+        [fleetApi.reducerPath]: fleetApi.reducer,
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware()
             .prepend(sessionListener.middleware)
-            .concat(authApi.middleware, ordersApi.middleware, employeesApi.middleware, profileApi.middleware),
+            .concat(
+                authApi.middleware,
+                ordersApi.middleware,
+                employeesApi.middleware,
+                profileApi.middleware,
+                fleetApi.middleware,
+            ),
 });
