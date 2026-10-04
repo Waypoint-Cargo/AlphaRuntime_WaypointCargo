@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_style.dart';
 import '../../../../providers/auth_provider.dart';
-import '../../driver/home/screens/driver_home_screen.dart';
+import '../../driver/screens/driver_home_screen.dart';
 import '../../loader/home/screens/loader_home_screen.dart';
 import '../widgets/auth_brand_header.dart';
 import '../widgets/auth_text_field.dart';
