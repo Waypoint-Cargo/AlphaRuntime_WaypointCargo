@@ -144,6 +144,9 @@ class VerificationBottomBar extends StatelessWidget {
   final VoidCallback? onReportShortfall;
   final EdgeInsetsGeometry? padding;
 
+  /// True while a request is running: the buttons lock so it cannot be repeated.
+  final bool isBusy;
+
   const VerificationBottomBar({
     super.key,
     this.totalItems,
@@ -152,6 +155,7 @@ class VerificationBottomBar extends StatelessWidget {
     required this.onReviewAndComplete,
     this.onReportShortfall,
     this.padding,
+    this.isBusy = false,
   });
 
   @override
@@ -172,7 +176,7 @@ class VerificationBottomBar extends StatelessWidget {
                   child: SizedBox(
                     height: 48,
                     child: OutlinedButton(
-                      onPressed: onPauseLoading,
+                      onPressed: isBusy ? null : onPauseLoading,
                       style: OutlinedButton.styleFrom(
                         backgroundColor: AppColors.white,
                         foregroundColor: AppColors.deepForestGreen,
@@ -220,35 +224,45 @@ class VerificationBottomBar extends StatelessWidget {
                   child: SizedBox(
                     height: 48,
                     child: ElevatedButton(
-                      onPressed: onReviewAndComplete,
+                      onPressed: isBusy ? null : onReviewAndComplete,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.deepForestGreen,
                         foregroundColor: AppColors.white,
+                        disabledBackgroundColor: AppColors.deepForestGreen,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 14),
                       ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Review & Complete',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.white,
+                      child: isBusy
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.white,
+                              ),
+                            )
+                          : const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Review & Complete',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.white,
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Icon(
+                                  Icons.arrow_forward_rounded,
+                                  size: 18,
+                                  color: AppColors.white,
+                                ),
+                              ],
                             ),
-                          ),
-                          SizedBox(width: 8),
-                          Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 18,
-                            color: AppColors.white,
-                          ),
-                        ],
-                      ),
                     ),
                   ),
                 ),
@@ -260,7 +274,7 @@ class VerificationBottomBar extends StatelessWidget {
                 width: double.infinity,
                 height: 44,
                 child: OutlinedButton.icon(
-                  onPressed: onReportShortfall,
+                  onPressed: isBusy ? null : onReportShortfall,
                   icon: const Icon(
                     Icons.warning_amber_rounded,
                     size: 18,

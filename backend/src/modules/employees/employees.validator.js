@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Role, Brand } from "../../generated/prisma/index.js";
+import { Role } from "../../generated/prisma/index.js";
 
 const employeeRole = z.enum(
     [Role.DISPATCHER, Role.LOADER, Role.DRIVER, Role.STORE_MANAGER],
@@ -37,7 +37,6 @@ const booleanFlag = z
 export const listEmployeesSchema = z.object({
     query: z.object({
         role: employeeRole.optional(),
-        outletId: sanitizedId.optional(),
         isActive: booleanFlag,
         page,
         limit,
@@ -52,23 +51,10 @@ export const listPendingEmployeesSchema = z.object({
     }),
 });
 
-// GET /employees/outlets
-export const listOutletsSchema = z.object({
-    query: z.object({
-        brand: z.enum([Brand.FRESH, Brand.STYLE, Brand.TECH], {
-            error: "Brand must be one of FRESH, STYLE, TECH",
-        }).optional(),
-        district: z.string().trim().min(1).max(100).optional(),
-    }),
-});
-
 // POST /employees/:userId/approve
 export const approveEmployeeSchema = z.object({
     params: z.object({
         userId: sanitizedId,
-    }),
-    body: z.object({
-        outletId: sanitizedId,
     }),
 });
 

@@ -7,24 +7,6 @@
  *   Nothing from the service layer should reach the controller as a raw
  *   Prisma object. Always pass through a DTO transformer first.
  */
-export const toOutletDTO = (outlet) =>
-    outlet && {
-        id: outlet.id,
-        code: outlet.code,
-        name: outlet.name,
-        brand: outlet.brand,
-        district: outlet.district,
-    };
-
-// Shapes the outlet picker list shown when approving an employee.
-export const toOutletListDTO = (outlets) =>
-    outlets.map((outlet) => ({
-        ...toOutletDTO(outlet),
-        depot: outlet.depot
-            ? { id: outlet.depot.id, code: outlet.depot.code, name: outlet.depot.name }
-            : null,
-    }));
-
 // Shapes a single employee/user record returned to the Store Manager.
 export const toEmployeeDTO = (user) => ({
     id: user.id,
@@ -36,7 +18,6 @@ export const toEmployeeDTO = (user) => ({
     isActive: user.isActive,
     isApproved: user.isApproved,
     approvedAt: user.approvedAt,
-    outlet: toOutletDTO(user.outlet) ?? null,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
 });

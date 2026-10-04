@@ -2,45 +2,34 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_style.dart';
+import '../../../../core/utils/date_formatter.dart';
+import '../../../../models/loading_issue.dart';
+import '../../../../models/loading_task.dart';
 import 'issue_type_selector.dart';
 
-class ReportedIssueItem {
-  final String id;
-  final IssueType type;
-  final String orderId;
-  final String routeId;
-  final String? outletName;
-  final String itemCode;
-  final String itemName;
-  final int plannedQty;
-  final int actualQty;
-  final String description;
-  final String? reportedTime;
-  final String status; // 'Pending', 'Resolved'
-  final bool hasPhoto;
-
-  const ReportedIssueItem({
-    required this.id,
-    required this.type,
-    required this.orderId,
-    required this.routeId,
-    this.outletName,
-    required this.itemCode,
-    required this.itemName,
-    required this.plannedQty,
-    required this.actualQty,
-    required this.description,
-    this.reportedTime,
-    this.status = 'Pending',
-    this.hasPhoto = false,
-  });
-
-  int get shortfall => plannedQty - actualQty;
+/// What a shortfall report is called on the card: the kind of problem when all
+/// its lines share one, otherwise just "Loading Shortfall".
+({String title, IssueType type}) _kindOf(LoadingIssue issue) {
+  return switch (issue.commonKind) {
+    LineStatus.short => (title: 'Missing Items', type: IssueType.missingItems),
+    LineStatus.damaged => (title: 'Damaged Items', type: IssueType.damagedItems),
+    LineStatus.wrongItem => (title: 'Wrong Items', type: IssueType.wrongItems),
+    _ => (title: 'Loading Shortfall', type: IssueType.quantityShort),
+  };
 }
 
+String _lineKind(LineStatus status) => switch (status) {
+      LineStatus.damaged => 'Damaged',
+      LineStatus.wrongItem => 'Wrong item',
+      _ => 'Missing',
+    };
+
 class ReportedIssueCard extends StatelessWidget {
-  final ReportedIssueItem issue;
+  final LoadingIssue issue;
   final VoidCallback? onTap;
+
+  /// Lines shown on the card; the rest are in the details.
+  static const int _maxLinesOnCard = 3;
 
   const ReportedIssueCard({
     super.key,
@@ -50,6 +39,12 @@ class ReportedIssueCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kind = _kindOf(issue);
+    final shownLines = issue.lines.take(_maxLinesOnCard).toList();
+    final hiddenLines = issue.lines.length - shownLines.length;
+    final reason = issue.reason;
+    final resolution = issue.resolutionNote;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -85,7 +80,7 @@ class ReportedIssueCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  issue.id,
+                  issue.reference,
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
@@ -108,7 +103,7 @@ class ReportedIssueCard extends StatelessWidget {
                     ),
                     child: Center(
                       child: Icon(
-                        issue.type.icon,
+                        kind.type.icon,
                         color: const Color(0xFF1B6A56),
                         size: 17,
                       ),
@@ -120,7 +115,7 @@ class ReportedIssueCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          issue.type.label,
+                          kind.title,
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -129,7 +124,7 @@ class ReportedIssueCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${issue.orderId} / ${issue.routeId}',
+                          issue.orderAndRoute,
                           style: AppTextStyles.bodySmall.copyWith(
                             color: AppColors.secondaryText,
                           ),
@@ -144,126 +139,128 @@ class ReportedIssueCard extends StatelessWidget {
 
               const SizedBox(height: 12),
               const Divider(height: 1, color: AppColors.divider),
-              const SizedBox(height: 10),
 
-              // Item details & Quantities
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'ITEM',
-                          style: AppTextStyles.labelSmall.copyWith(
-                            fontSize: 9.5,
-                            color: AppColors.mutedText,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${issue.itemCode} - ${issue.itemName}',
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primaryText,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-
-                  // Planned vs Actual
-                  _buildQtyBadge(
-                    label: 'PLANNED',
-                    value: '${issue.plannedQty}',
-                    color: AppColors.primaryText,
-                  ),
-                  const SizedBox(width: 6),
-                  _buildQtyBadge(
-                    label: 'ACTUAL',
-                    value: '${issue.actualQty}',
-                    color: AppColors.deepForestGreen,
-                  ),
-                  if (issue.shortfall > 0) ...[
-                    const SizedBox(width: 6),
-                    _buildQtyBadge(
-                      label: 'SHORTFALL',
-                      value: '-${issue.shortfall}',
-                      color: AppColors.error,
-                      isAlert: true,
-                    ),
-                  ],
-                ],
-              ),
-
-              if (issue.description.isNotEmpty) ...[
+              // Item details & Quantities, one row per line the loader flagged
+              for (final (index, line) in shownLines.indexed) ...[
                 const SizedBox(height: 10),
-                Container(
-                  width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.mutedBackground,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.only(top: 2),
-                        child: Icon(
-                          Icons.notes_rounded,
-                          size: 14,
-                          color: AppColors.secondaryText,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          issue.description,
-                          style: const TextStyle(
-                            fontSize: 11.5,
-                            color: Color(0xFF475569),
-                            height: 1.25,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+                _buildLineRow(line, showCaption: index == 0),
+              ],
+              if (hiddenLines > 0) ...[
+                const SizedBox(height: 8),
+                Text(
+                  hiddenLines == 1 ? '+1 more item' : '+$hiddenLines more items',
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.secondaryText,
                   ),
                 ),
               ],
 
-              if (issue.hasPhoto) ...[
+              if (reason != null && reason.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _buildNote(Icons.notes_rounded, reason, AppColors.mutedBackground, const Color(0xFF475569)),
+              ],
+
+              // The dispatcher's answer, once there is one
+              if (issue.status.isResolved && resolution != null && resolution.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.image_outlined,
-                      size: 14,
-                      color: Color(0xFF1B6A56),
-                    ),
-                    const SizedBox(width: 4),
-                    const Text(
-                      'Photo attached',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1B6A56),
-                      ),
-                    ),
-                  ],
-                ),
+                _buildNote(Icons.check_circle_outline_rounded, resolution, AppColors.successLight, AppColors.success),
               ],
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildLineRow(IssueLine line, {required bool showCaption}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (showCaption) ...[
+                Text(
+                  'ITEM',
+                  style: AppTextStyles.labelSmall.copyWith(
+                    fontSize: 9.5,
+                    color: AppColors.mutedText,
+                  ),
+                ),
+                const SizedBox(height: 2),
+              ],
+              Text(
+                line.label,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primaryText,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+
+        // Planned vs Actual
+        _buildQtyBadge(
+          label: 'PLANNED',
+          value: '${line.plannedQty}',
+          color: AppColors.primaryText,
+        ),
+        const SizedBox(width: 6),
+        _buildQtyBadge(
+          label: 'ACTUAL',
+          value: '${line.availableQty}',
+          color: AppColors.deepForestGreen,
+        ),
+        if (line.shortQty > 0) ...[
+          const SizedBox(width: 6),
+          _buildQtyBadge(
+            label: 'SHORTFALL',
+            value: '-${line.shortQty}',
+            color: AppColors.error,
+            isAlert: true,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildNote(IconData icon, String text, Color background, Color color) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(icon, size: 14, color: color),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 11.5,
+                color: color,
+                height: 1.25,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -305,78 +302,145 @@ class ReportedIssueCard extends StatelessWidget {
     );
   }
 
+  String get _statusText => switch (issue.status) {
+        IssueStatus.open => 'Waiting for the dispatcher',
+        IssueStatus.investigating => 'The dispatcher is looking into it',
+        IssueStatus.resolved => 'Resolved',
+      };
+
   void _showIssueDetailModal(BuildContext context) {
+    final kind = _kindOf(issue);
+    final reportedAt = issue.reportedAt;
+    final resolvedAt = issue.resolvedAt;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.cardBackground,
+      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.88),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Issue Details (${issue.id})',
-                  style: AppTextStyles.heading3,
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Issue Details (${issue.reference})',
+                    style: AppTextStyles.heading3,
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildDetailRow('Issue Type', kind.title),
+                      _buildDetailRow('Order / Route', issue.orderAndRoute),
+                      _buildDetailRow('Status', _statusText),
+                      if (issue.reportedByName != null)
+                        _buildDetailRow('Reported By', issue.reportedByName!),
+                      if (reportedAt != null)
+                        _buildDetailRow(
+                          'Reported',
+                          '${DateFormatter.formatDateTime(reportedAt)} (${DateFormatter.formatAgo(reportedAt)})',
+                        ),
+                      if (issue.reason != null && issue.reason!.isNotEmpty)
+                        _buildDetailRow('Notes', issue.reason!),
+                      if (issue.status.isResolved) ...[
+                        if (issue.resolvedByName != null)
+                          _buildDetailRow('Resolved By', issue.resolvedByName!),
+                        if (resolvedAt != null)
+                          _buildDetailRow('Resolved', DateFormatter.formatDateTime(resolvedAt)),
+                        if (issue.resolutionNote != null && issue.resolutionNote!.isNotEmpty)
+                          _buildDetailRow('Resolution', issue.resolutionNote!),
+                      ],
+                      const SizedBox(height: 8),
+                      const Divider(height: 1, color: AppColors.divider),
+                      const SizedBox(height: 8),
+                      Text(
+                        issue.lines.length == 1 ? 'Item' : 'Items (${issue.lines.length})',
+                        style: AppTextStyles.labelLarge,
+                      ),
+                      for (final line in issue.lines) _buildLineDetail(line),
+                      const SizedBox(height: 4),
+                      _buildDetailRow('Total Shortfall', '-${issue.totalShortItems} units', isError: true),
+                    ],
+                  ),
                 ),
-                IconButton(
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: AppSpacing.buttonHeight,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.deepForestGreen,
+                    foregroundColor: AppColors.white,
+                  ),
                   onPressed: () => Navigator.pop(ctx),
-                  icon: const Icon(Icons.close, size: 20),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
+                  child: const Text('Close Details'),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _buildDetailRow('Issue Type', issue.type.label),
-            _buildDetailRow('Order / Route', '${issue.orderId} / ${issue.routeId}'),
-            if (issue.outletName != null && issue.outletName!.isNotEmpty)
-              _buildDetailRow('Outlet', issue.outletName!),
-            _buildDetailRow('Item', '${issue.itemCode} - ${issue.itemName}'),
-            _buildDetailRow('Planned Quantity', '${issue.plannedQty} units'),
-            _buildDetailRow('Actual Quantity', '${issue.actualQty} units'),
-            if (issue.shortfall > 0)
-              _buildDetailRow('Shortfall', '-${issue.shortfall} units', isError: true),
-            _buildDetailRow('Status', issue.status),
-            if (issue.reportedTime != null && issue.reportedTime!.isNotEmpty)
-              _buildDetailRow('Reported Time', issue.reportedTime!),
-            if (issue.description.isNotEmpty)
-              _buildDetailRow('Notes', issue.description),
-            if (issue.hasPhoto)
-              _buildDetailRow('Attachment', 'damage_report_01.jpg (Verified)'),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: AppSpacing.buttonHeight,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.deepForestGreen,
-                  foregroundColor: AppColors.white,
-                ),
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Close Details'),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildLineDetail(IssueLine line) {
+    final note = line.note;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            line.label,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.primaryText,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${line.orderReference}  |  ${_lineKind(line.status)}  |  '
+            'Planned ${line.plannedQty}, actual ${line.availableQty}, short ${line.shortQty}',
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.secondaryText),
+          ),
+          if (note != null && note.isNotEmpty)
+            Text(
+              note,
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.secondaryText),
+            ),
+        ],
       ),
     );
   }

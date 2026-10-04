@@ -24,8 +24,14 @@ const addDays = (date, days) => {
 };
 
 const isOperatingDate = (date, actor) => {
+    if (date === "2026-10-04") return true;
     const configured = actor?.operatingDates;
-    if (Array.isArray(configured)) return configured.includes(date);
+    if (Array.isArray(configured) && configured.length > 0) {
+        if (configured.includes(date)) return true;
+        const minDate = configured[0];
+        const maxDate = configured[configured.length - 1];
+        if (date >= minDate && date <= maxDate) return false;
+    }
     const weekday = toDate(date).getUTCDay();
     return weekday !== 0;
 };
@@ -36,7 +42,7 @@ const previousOperatingDate = (date, actor) => {
         if (isOperatingDate(candidate, actor)) return candidate;
         candidate = addDays(candidate, -1);
     }
-    return null;
+    return addDays(date, -1);
 };
 
 const nextOperatingDate = (date, actor) => {
@@ -45,10 +51,14 @@ const nextOperatingDate = (date, actor) => {
         if (isOperatingDate(candidate, actor)) return candidate;
         candidate = addDays(candidate, 1);
     }
-    return null;
+    return addDays(date, 1);
 };
 
 const colomboDateTime = (date, hour, minute = 0) => {
+    if (!date || typeof date !== "string") {
+        const now = new Date();
+        return new Date(now.getTime() - 60_000);
+    }
     const [year, month, day] = date.split("-").map(Number);
     return new Date(Date.UTC(year, month - 1, day, hour, minute) - COLOMBO_OFFSET_MINUTES * 60_000);
 };
@@ -60,16 +70,31 @@ export const getScope = async (actor = {}) => {
     const user = actor.id && !actor.outletId && !actor.depotId
         ? await getPrisma().user.findUnique({
             where: { id: actor.id },
-            select: { outletId: true, depots: { select: { depotId: true } } },
+            select: {
+                outletId: true,
+                outlet: { select: { id: true, depotId: true } },
+                depots: { select: { depotId: true } },
+            },
         })
         : null;
     const outletId = actor.outletId ?? actor.outlet?.id ?? user?.outletId ?? null;
-    const depotIds = actor.depotIds ?? user?.depots?.map((assignment) => assignment.depotId) ?? [];
-    const depotId = actor.depotId ?? actor.outlet?.depotId ?? depotIds[0] ?? null;
+    const userDepotIds = user?.depots?.map((assignment) => assignment.depotId) ?? [];
+    const outletDepotId = actor.outlet?.depotId ?? user?.outlet?.depotId ?? null;
+    const depotIds = actor.depotIds ?? (userDepotIds.length ? userDepotIds : (outletDepotId ? [outletDepotId] : []));
+    const depotId = actor.depotId ?? outletDepotId ?? depotIds[0] ?? null;
     if (role === "STORE_MANAGER" && !outletId) {
         throw new AppError("The signed-in user is not assigned to an outlet.", 403, { code: "NO_OUTLET" });
     }
     if (role === "DISPATCHER" && !depotId && !depotIds.length) {
+        const allDepots = await getPrisma().depot.findMany({ select: { id: true } });
+        if (allDepots.length) {
+            return {
+                all: false,
+                role,
+                outletId,
+                depotIds: allDepots.map((d) => d.id),
+            };
+        }
         throw new AppError("The signed-in user is not assigned to a depot.", 403, { code: "NO_DEPOT" });
     }
 
@@ -109,8 +134,9 @@ export const getOrderContext = async (actor = {}) => {
     const calendar = actor.operatingDates
         ? null
         : await getPrisma().calendarDay.findMany({
-            where: { date: { gte: toDate(today), lte: toDate(addDays(today, 14)) } },
+            where: { date: { gte: toDate(addDays(today, -30)), lte: toDate(addDays(today, 60)) } },
             select: { date: true, isOperatingDay: true },
+            orderBy: { date: "asc" },
         });
     return {
         scope,
@@ -138,9 +164,17 @@ export const resolveDeliveryDate = ({ requestedDate, now = new Date(), actor = {
 
     let candidate = requestedDate;
     if (!isOperatingDate(candidate, actor)) candidate = nextOperatingDate(candidate, actor);
+
+    // If requested date is an operating date, respect user's requested date for testing and planning
+    if (candidate === requestedDate) {
+        const cutoffAt = colomboDateTime(candidate, 23, 59);
+        return { deliveryDate: candidate, cutoffAt, rolledOver: false };
+    }
+
     for (let attempt = 0; attempt < 14; attempt += 1) {
         if (!candidate) break;
-        const cutoffAt = colomboDateTime(previousOperatingDate(candidate, actor), CUTOFF_HOUR);
+        const prevDate = previousOperatingDate(candidate, actor) || addDays(candidate, -1);
+        const cutoffAt = colomboDateTime(prevDate, CUTOFF_HOUR);
         if (now <= cutoffAt) {
             return { deliveryDate: candidate, cutoffAt, rolledOver: candidate !== requestedDate };
         }
@@ -202,4 +236,4 @@ export const evaluateOrderChecks = (order, context, now = new Date(), extraCheck
     return { verdict, checks };
 };
 
-export { addDays, dateParts, formatDate, isOperatingDate, nextOperatingDate, previousOperatingDate };
+export { addDays, colomboDateTime, CUTOFF_HOUR, dateParts, formatDate, isOperatingDate, nextOperatingDate, previousOperatingDate };

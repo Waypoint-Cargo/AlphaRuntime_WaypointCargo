@@ -69,26 +69,27 @@ class NextStepCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 10),
-
-          // Action Button
-          ElevatedButton(
-            onPressed: onButtonTap,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.gold,
-              foregroundColor: AppColors.deepForestGreen,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              minimumSize: const Size(0, 40),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+          // Action Button (a step with nothing to do, like "all caught up", has none)
+          if (onButtonTap != null) ...[
+            const SizedBox(width: 10),
+            ElevatedButton(
+              onPressed: onButtonTap,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.gold,
+                foregroundColor: AppColors.deepForestGreen,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                minimumSize: const Size(0, 40),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+                ),
+              ),
+              child: Text(
+                buttonText,
+                style: AppTextStyles.button,
               ),
             ),
-            child: Text(
-              buttonText,
-              style: AppTextStyles.button,
-            ),
-          ),
+          ],
         ],
       ),
     );

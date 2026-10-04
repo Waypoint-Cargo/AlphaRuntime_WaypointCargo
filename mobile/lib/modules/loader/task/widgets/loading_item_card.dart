@@ -2,62 +2,40 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_style.dart';
+import '../../../../models/loading_task.dart';
 
-class OrderItem {
-  final String code;
-  final String name;
-  final int qtyToLoad;
-  int loadedQty;
-
-  OrderItem({
-    required this.code,
-    required this.name,
-    required this.qtyToLoad,
-    this.loadedQty = 0,
-  });
-}
-
-class OutletOrder {
-  final int index;
-  final String storeName;
-  final String orderId;
-  final List<OrderItem> items;
-  bool isExpanded;
-  bool showAllItems;
-
-  OutletOrder({
-    required this.index,
-    required this.storeName,
-    required this.orderId,
-    required this.items,
-    this.isExpanded = false,
-    this.showAllItems = false,
-  });
-
-  int get totalItemsToLoad => items.fold(0, (sum, item) => sum + item.qtyToLoad);
-  int get totalItemsLoaded => items.fold(0, (sum, item) => sum + item.loadedQty);
-  double get progress => totalItemsToLoad > 0 ? (totalItemsLoaded / totalItemsToLoad).clamp(0.0, 1.0) : 0.0;
-}
-
+/// One outlet on the route: its orders, progress and the lines to load, each
+/// with a loaded-quantity stepper.
 class LoadingItemCard extends StatelessWidget {
-  final OutletOrder outlet;
+  final LoadingStop stop;
+  final bool isExpanded;
+  final bool showAllItems;
   final VoidCallback onToggleExpand;
   final VoidCallback onToggleShowAll;
-  final void Function(OrderItem item, int newQty) onQtyChanged;
+  final void Function(LoadingLine line, int newQty) onQtyChanged;
+
+  /// False when the loader cannot change quantities (the task is not theirs).
+  final bool enabled;
 
   const LoadingItemCard({
     super.key,
-    required this.outlet,
+    required this.stop,
+    required this.isExpanded,
+    required this.showAllItems,
     required this.onToggleExpand,
     required this.onToggleShowAll,
     required this.onQtyChanged,
+    this.enabled = true,
   });
+
+  static const int _collapsedLineCount = 8;
 
   @override
   Widget build(BuildContext context) {
-    final displayedItems = outlet.showAllItems
-        ? outlet.items
-        : outlet.items.take(8).toList();
+    final progress = stop.progress;
+    final displayedLines = showAllItems
+        ? stop.lines
+        : stop.lines.take(_collapsedLineCount).toList();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12.0),
@@ -88,7 +66,7 @@ class LoadingItemCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Green index circle
+                  // Green index circle: the outlet's place in the delivery order
                   Container(
                     width: 28,
                     height: 28,
@@ -98,7 +76,7 @@ class LoadingItemCard extends StatelessWidget {
                     ),
                     alignment: Alignment.center,
                     child: Text(
-                      '${outlet.index}',
+                      '${stop.sequence}',
                       style: AppTextStyles.buttonLight.copyWith(fontSize: 13),
                     ),
                   ),
@@ -110,12 +88,18 @@ class LoadingItemCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          outlet.storeName,
+                          stop.outlet.name,
                           style: AppTextStyles.labelLarge,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          'Order #${outlet.orderId}',
+                          stop.orders.length > 1
+                              ? 'Orders #${stop.orderReferences}'
+                              : 'Order #${stop.orderReferences}',
                           style: AppTextStyles.bodySmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
@@ -129,7 +113,7 @@ class LoadingItemCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      '${outlet.items.length} Items',
+                      '${progress.totalItems} Items',
                       style: AppTextStyles.statusSuccess,
                     ),
                   ),
@@ -137,7 +121,7 @@ class LoadingItemCard extends StatelessWidget {
 
                   // Expand / Collapse Chevron
                   Icon(
-                    outlet.isExpanded
+                    isExpanded
                         ? Icons.keyboard_arrow_up_rounded
                         : Icons.keyboard_arrow_down_rounded,
                     color: AppColors.secondaryText,
@@ -149,7 +133,7 @@ class LoadingItemCard extends StatelessWidget {
           ),
 
           // Expanded Content
-          if (outlet.isExpanded) ...[
+          if (isExpanded) ...[
             // Progress row
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14.0),
@@ -160,11 +144,11 @@ class LoadingItemCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '${outlet.totalItemsLoaded} of ${outlet.totalItemsToLoad} items loaded',
+                        '${progress.loadedItems} of ${progress.totalItems} items loaded',
                         style: AppTextStyles.bodySmall,
                       ),
                       Text(
-                        '${(outlet.progress * 100).toInt()}%',
+                        '${progress.percent}%',
                         style: AppTextStyles.labelLarge,
                       ),
                     ],
@@ -173,7 +157,9 @@ class LoadingItemCard extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
-                      value: outlet.progress,
+                      value: progress.totalItems > 0
+                          ? progress.loadedItems / progress.totalItems
+                          : 0.0,
                       backgroundColor: AppColors.mutedBackground,
                       valueColor: const AlwaysStoppedAnimation<Color>(AppColors.success),
                       minHeight: 4,
@@ -246,13 +232,13 @@ class LoadingItemCard extends StatelessWidget {
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: displayedItems.length,
+              itemCount: displayedLines.length,
               separatorBuilder: (context, index) => const Divider(
                 height: 1,
                 color: AppColors.divider,
               ),
               itemBuilder: (context, index) {
-                final item = displayedItems[index];
+                final line = displayedLines[index];
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
                   child: Row(
@@ -261,19 +247,29 @@ class LoadingItemCard extends StatelessWidget {
                       Expanded(
                         flex: 3,
                         child: Text(
-                          item.code,
+                          line.displayCode,
                           style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryText),
                         ),
                       ),
 
-                      // Item Name
+                      // Item Name (and a note when part of it was reported short)
                       Expanded(
                         flex: 5,
-                        child: Text(
-                          item.name,
-                          style: AppTextStyles.bodyMedium,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              line.itemName,
+                              style: AppTextStyles.bodyMedium,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (line.shortQty > 0)
+                              Text(
+                                '${line.shortQty} reported short',
+                                style: AppTextStyles.statusError,
+                              ),
+                          ],
                         ),
                       ),
 
@@ -281,7 +277,7 @@ class LoadingItemCard extends StatelessWidget {
                       Expanded(
                         flex: 3,
                         child: Text(
-                          '${item.qtyToLoad}',
+                          '${line.plannedQty}',
                           textAlign: TextAlign.center,
                           style: AppTextStyles.heading3,
                         ),
@@ -290,46 +286,52 @@ class LoadingItemCard extends StatelessWidget {
                       // Loaded Qty Stepper [ - ] [ qty ] [ + ]
                       Expanded(
                         flex: 4,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // Decrement button
-                            _buildStepperButton(
-                              icon: Icons.remove,
-                              onTap: item.loadedQty > 0
-                                  ? () => onQtyChanged(item, item.loadedQty - 1)
-                                  : null,
-                            ),
-                            const SizedBox(width: 4),
+                        // On a narrow phone the stepper shrinks a little instead of overflowing.
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Decrement button
+                              _buildStepperButton(
+                                icon: Icons.remove,
+                                onTap: enabled && line.loadedQty > 0
+                                    ? () => onQtyChanged(line, line.loadedQty - 1)
+                                    : null,
+                              ),
+                              const SizedBox(width: 4),
 
-                            // Quantity display box
-                            Container(
-                              width: 32,
-                              height: 28,
-                              decoration: BoxDecoration(
-                                color: AppColors.white,
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(
-                                  color: AppColors.border,
-                                  width: 0.8,
+                              // Quantity display box
+                              Container(
+                                width: 32,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: AppColors.white,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: line.excessQty > 0
+                                        ? AppColors.error
+                                        : AppColors.border,
+                                    width: 0.8,
+                                  ),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  '${line.loadedQty}',
+                                  style: AppTextStyles.labelLarge,
                                 ),
                               ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                '${item.loadedQty}',
-                                style: AppTextStyles.labelLarge,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
+                              const SizedBox(width: 4),
 
-                            // Increment button
-                            _buildStepperButton(
-                              icon: Icons.add,
-                              onTap: item.loadedQty < item.qtyToLoad
-                                  ? () => onQtyChanged(item, item.loadedQty + 1)
-                                  : null,
-                            ),
-                          ],
+                              // Increment button
+                              _buildStepperButton(
+                                icon: Icons.add,
+                                onTap: enabled && line.loadedQty < line.maxLoadableQty
+                                    ? () => onQtyChanged(line, line.loadedQty + 1)
+                                    : null,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -339,7 +341,7 @@ class LoadingItemCard extends StatelessWidget {
             ),
 
             // View all items toggle footer
-            if (outlet.items.length > 8)
+            if (stop.lines.length > _collapsedLineCount)
               InkWell(
                 onTap: onToggleShowAll,
                 child: Container(
@@ -350,9 +352,9 @@ class LoadingItemCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        outlet.showAllItems
+                        showAllItems
                             ? 'Show less'
-                            : 'View all ${outlet.items.length} items',
+                            : 'View all ${stop.lines.length} products',
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -361,7 +363,7 @@ class LoadingItemCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Icon(
-                        outlet.showAllItems
+                        showAllItems
                             ? Icons.keyboard_arrow_up_rounded
                             : Icons.keyboard_arrow_down_rounded,
                         color: AppColors.deepForestGreen,

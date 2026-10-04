@@ -2,16 +2,15 @@ import { sendSuccess } from "../../utils/apiResponse.js";
 import {
     listEmployeesService,
     listPendingEmployeesService,
-    listOutletsService,
     approveEmployeeService,
     deleteEmployeeService,
 } from "./employees.service.js";
 
-// GET /employees — all approved employees, optionally filtered by role/outlet/active status
+// GET /employees — all approved employees, optionally filtered by role/active status
 export const listEmployeesController = async (req, res) => {
-    const { role, outletId, isActive, page, limit } = req.query;
+    const { role, isActive, page, limit } = req.query;
 
-    const { items, meta } = await listEmployeesService({ role, outletId, isActive, page, limit });
+    const { items, meta } = await listEmployeesService({ role, isActive, page, limit });
 
     return sendSuccess(res, {
         statusCode: 200,
@@ -35,27 +34,12 @@ export const listPendingEmployeesController = async (req, res) => {
     });
 };
 
-// GET /employees/outlets — outlets available to assign when approving an employee
-export const listOutletsController = async (req, res) => {
-    const { brand, district } = req.query;
-
-    const outlets = await listOutletsService({ brand, district });
-
-    return sendSuccess(res, {
-        statusCode: 200,
-        message: "Outlets retrieved successfully.",
-        data: outlets,
-    });
-};
-
-// POST /employees/:userId/approve — assign employee number + outlet, then email the employee
+// POST /employees/:userId/approve — assign employee number, then email the employee
 export const approveEmployeeController = async (req, res) => {
     const { userId } = req.params;
-    const { outletId } = req.body;
 
     const employee = await approveEmployeeService({
         userId,
-        outletId,
         approvedById: req.user.id,
     });
 

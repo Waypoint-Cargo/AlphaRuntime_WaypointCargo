@@ -5,13 +5,11 @@ import {
     findEmployees,
     findPendingUsers,
     findUserById,
-    findOutletById,
-    findOutlets,
     findEmployeeNumbersByPrefix,
     approveUserTx,
     deleteUser,
 } from "./employees.repository.js";
-import { toEmployeeDTO, toEmployeeListResponseDTO, toOutletListDTO } from "./employees.dto.js";
+import { toEmployeeDTO, toEmployeeListResponseDTO } from "./employees.dto.js";
 import { sendAccountApprovedEmail } from "../email/email.service.js";
 
 // Role → employee number prefix, e.g. DRIVER -> "dri_001"
@@ -37,10 +35,9 @@ const buildNextEmployeeNumber = async (prefix) => {
     return `${prefix}_${String(highest + 1).padStart(3, "0")}`;
 };
 
-export const listEmployeesService = async ({ role, outletId, isActive, page, limit }) => {
+export const listEmployeesService = async ({ role, isActive, page, limit }) => {
     const { items, total } = await findEmployees({
         role,
-        outletId,
         isActive,
         skip: (page - 1) * limit,
         take: limit,
@@ -56,19 +53,10 @@ export const listPendingEmployeesService = async ({ page, limit }) => {
     return toEmployeeListResponseDTO({ items, total, page, limit });
 };
 
-export const listOutletsService = async ({ brand, district }) => {
-    const outlets = await findOutlets({ brand, district });
-    return toOutletListDTO(outlets);
-};
-
-export const approveEmployeeService = async ({ userId, outletId, approvedById }) => {
+export const approveEmployeeService = async ({ userId, approvedById }) => {
     const user = await findUserById(userId);
     if (!user) throw new AppError("User not found.", 404);
     if (user.isApproved) throw new AppError("This user has already been approved.", 409);
-
-    const outlet = await findOutletById(outletId);
-    if (!outlet) throw new AppError("Outlet not found.", 404);
-    if (!outlet.isActive) throw new AppError("Cannot assign an inactive outlet.", 400);
 
     const prefix = EMPLOYEE_NUMBER_PREFIX[user.role];
     if (!prefix) {
@@ -84,7 +72,7 @@ export const approveEmployeeService = async ({ userId, outletId, approvedById })
         const employeeNumber = await buildNextEmployeeNumber(prefix);
         try {
             approvedUser = await db.$transaction((tx) =>
-                approveUserTx(tx, { userId, employeeNumber, outletId, approvedById }),
+                approveUserTx(tx, { userId, employeeNumber, approvedById }),
             );
             break;
         } catch (error) {

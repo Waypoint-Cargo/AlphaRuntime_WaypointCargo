@@ -2,57 +2,30 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_style.dart';
-
-enum TaskCategory {
-  fresh,
-  style,
-  tech,
-}
-
-enum TaskPriority {
-  high,
-  normal,
-  low,
-}
-
-class PendingTaskItem {
-  final String routeId;
-  final TaskCategory category;
-  final TaskPriority priority;
-  final String vehicle;
-  final String departure;
-  final String outlets;
-  final String items;
-  final String status;
-  final String subStatus;
-  final bool isCompleted;
-
-  const PendingTaskItem({
-    required this.routeId,
-    required this.category,
-    required this.priority,
-    required this.vehicle,
-    required this.departure,
-    required this.outlets,
-    required this.items,
-    this.status = 'Waiting to Load',
-    this.subStatus = 'Not started yet',
-    this.isCompleted = false,
-  });
-}
+import '../../../../core/utils/date_formatter.dart';
+import '../../../../models/loading_task.dart';
+import 'brand_style.dart';
 
 class TaskCardWidget extends StatelessWidget {
-  final PendingTaskItem task;
+  final LoadingTask task;
   final VoidCallback? onOpenTask;
+
+  /// True while this task is being claimed: the button shows a spinner.
+  final bool isOpening;
 
   const TaskCardWidget({
     super.key,
     required this.task,
     this.onOpenTask,
+    this.isOpening = false,
   });
+
+  bool get _isCompleted => task.status == TaskStatus.completed;
 
   @override
   Widget build(BuildContext context) {
+    final status = _statusInfo();
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14.0),
       padding: const EdgeInsets.all(AppSpacing.cardPadding),
@@ -82,11 +55,13 @@ class TaskCardWidget extends StatelessWidget {
               Row(
                 children: [
                   Text(
-                    task.routeId,
+                    task.routeCode,
                     style: AppTextStyles.heading2,
                   ),
-                  const SizedBox(width: 8),
-                  _buildCategoryBadge(task.category),
+                  if (task.brand != null) ...[
+                    const SizedBox(width: 8),
+                    _buildCategoryBadge(task.brand!),
+                  ],
                 ],
               ),
 
@@ -104,7 +79,7 @@ class TaskCardWidget extends StatelessWidget {
                 child: _buildMetricItem(
                   icon: Icons.local_shipping_outlined,
                   title: 'Vehicle',
-                  value: task.vehicle,
+                  value: task.vehicle.code,
                 ),
               ),
               Container(
@@ -118,7 +93,7 @@ class TaskCardWidget extends StatelessWidget {
                   child: _buildMetricItem(
                     icon: Icons.access_time_rounded,
                     title: 'Departure',
-                    value: task.departure,
+                    value: DateFormatter.formatDeparture(task.plannedDeparture),
                   ),
                 ),
               ),
@@ -135,7 +110,9 @@ class TaskCardWidget extends StatelessWidget {
                 child: _buildMetricItem(
                   icon: Icons.storefront_outlined,
                   title: 'Outlets',
-                  value: task.outlets,
+                  value: task.outletCount == 1
+                      ? '1 Outlet'
+                      : '${task.outletCount} Outlets',
                 ),
               ),
               Container(
@@ -149,7 +126,7 @@ class TaskCardWidget extends StatelessWidget {
                   child: _buildMetricItem(
                     icon: Icons.inventory_2_outlined,
                     title: 'Items',
-                    value: task.items,
+                    value: '${task.itemCount} Items',
                   ),
                 ),
               ),
@@ -164,68 +141,87 @@ class TaskCardWidget extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Status with dot
-              Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: task.isCompleted ? AppColors.success : AppColors.pending,
-                      shape: BoxShape.circle,
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: status.color,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        task.status,
-                        style: AppTextStyles.labelLarge,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            status.title,
+                            style: AppTextStyles.labelLarge,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            status.subtitle,
+                            style: AppTextStyles.bodySmall,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
-                      Text(
-                        task.subStatus,
-                        style: AppTextStyles.bodySmall,
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 10),
 
               // Action Button
               ElevatedButton(
-                onPressed: onOpenTask,
+                onPressed: isOpening ? null : onOpenTask,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: task.isCompleted ? AppColors.successLight : AppColors.gold,
-                  foregroundColor: task.isCompleted ? AppColors.success : AppColors.deepForestGreen,
+                  backgroundColor: _isCompleted ? AppColors.successLight : AppColors.gold,
+                  foregroundColor: _isCompleted ? AppColors.success : AppColors.deepForestGreen,
+                  disabledBackgroundColor: AppColors.gold,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   minimumSize: const Size(0, 40),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-                    side: task.isCompleted
+                    side: _isCompleted
                         ? const BorderSide(color: AppColors.success, width: 1.0)
                         : BorderSide.none,
                   ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      task.isCompleted ? 'View Task' : 'Open Task',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: task.isCompleted ? AppColors.success : AppColors.deepForestGreen,
+                child: isOpening
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.deepForestGreen,
+                        ),
+                      )
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _isCompleted ? 'View Task' : 'Open Task',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: _isCompleted ? AppColors.success : AppColors.deepForestGreen,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(
+                            _isCompleted ? Icons.check_circle_outline_rounded : Icons.arrow_forward_rounded,
+                            size: 16,
+                            color: _isCompleted ? AppColors.success : AppColors.deepForestGreen,
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Icon(
-                      task.isCompleted ? Icons.check_circle_outline_rounded : Icons.arrow_forward_rounded,
-                      size: 16,
-                      color: task.isCompleted ? AppColors.success : AppColors.deepForestGreen,
-                    ),
-                  ],
-                ),
               ),
             ],
           ),
@@ -234,50 +230,94 @@ class TaskCardWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildCategoryBadge(TaskCategory category) {
-    Color bg;
-    Color textAndIconColor;
-    String label;
-    IconData icon;
+  /// What the footer says about the task: the headline, the detail under it
+  /// and the colour of the dot.
+  ({String title, String subtitle, Color color}) _statusInfo() {
+    final progress = task.progress;
 
-    switch (category) {
-      case TaskCategory.fresh:
-        bg = const Color(0xFFD4ECE6);
-        textAndIconColor = const Color(0xFF1B6A56);
-        label = 'FRESH';
-        icon = Icons.ac_unit_rounded;
-        break;
-      case TaskCategory.style:
-        bg = const Color(0xFFEAE6FF);
-        textAndIconColor = const Color(0xFF6B46C1);
-        label = 'STYLE';
-        icon = Icons.checkroom_outlined;
-        break;
-      case TaskCategory.tech:
-        bg = const Color(0xFFE0F2FE);
-        textAndIconColor = const Color(0xFF0284C7);
-        label = 'TECH';
-        icon = Icons.desktop_windows_outlined;
-        break;
+    switch (task.status) {
+      case TaskStatus.pending:
+        // A route that breaks an operating constraint cannot be opened yet.
+        if (task.violations.isNotEmpty) {
+          return (
+            title: 'Needs the dispatcher',
+            subtitle: task.violations.first.message,
+            color: AppColors.error,
+          );
+        }
+        return (
+          title: 'Waiting to Load',
+          subtitle: 'Not started yet',
+          color: AppColors.pending,
+        );
+
+      case TaskStatus.inProgress:
+        final lock = task.lock;
+        if (lock == null || lock.isMine) {
+          return (
+            title: 'In Progress',
+            subtitle: '${progress.loadedItems} of ${progress.totalItems} items loaded',
+            color: AppColors.info,
+          );
+        }
+        if (lock.isExpired) {
+          return (
+            title: 'Available',
+            subtitle: 'Left by ${lock.heldByName ?? 'another loader'}',
+            color: AppColors.pending,
+          );
+        }
+        return (
+          title: 'In Use',
+          subtitle: 'Being loaded by ${lock.heldByName ?? 'another loader'}',
+          color: AppColors.info,
+        );
+
+      case TaskStatus.paused:
+        return (
+          title: 'Paused',
+          subtitle: '${progress.loadedItems} of ${progress.totalItems} items loaded',
+          color: AppColors.pending,
+        );
+
+      case TaskStatus.onHold:
+        return (
+          title: 'On Hold',
+          subtitle: 'Waiting for the dispatcher',
+          color: AppColors.error,
+        );
+
+      case TaskStatus.completed:
+        return (
+          title: 'Completed',
+          subtitle: progress.remainingItems > 0
+              ? 'Loaded short by ${progress.remainingItems} items'
+              : 'Verified & Loaded',
+          color: AppColors.success,
+        );
     }
+  }
+
+  Widget _buildCategoryBadge(TaskCategory category) {
+    final Color textAndIconColor = BrandStyle.color(category);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: bg,
+        color: BrandStyle.background(category),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            icon,
+            BrandStyle.icon(category),
             size: 13,
             color: textAndIconColor,
           ),
           const SizedBox(width: 4),
           Text(
-            label,
+            BrandStyle.label(category),
             style: TextStyle(
               fontSize: 10.5,
               fontWeight: FontWeight.bold,
@@ -291,49 +331,27 @@ class TaskCardWidget extends StatelessWidget {
   }
 
   Widget _buildPriorityBadge(TaskPriority priority) {
-    Color bg;
-    Color textAndIconColor;
-    String label;
-    IconData icon;
-
-    switch (priority) {
-      case TaskPriority.high:
-        bg = AppColors.pendingLight;
-        textAndIconColor = const Color(0xFFD97706);
-        label = 'High Priority';
-        icon = Icons.keyboard_arrow_up_rounded;
-        break;
-      case TaskPriority.normal:
-        bg = AppColors.pendingLight;
-        textAndIconColor = const Color(0xFFB45309);
-        label = 'Normal Priority';
-        icon = Icons.remove_rounded;
-        break;
-      case TaskPriority.low:
-        bg = const Color(0xFFF1F5F9);
-        textAndIconColor = const Color(0xFF64748B);
-        label = 'Low Priority';
-        icon = Icons.keyboard_arrow_down_rounded;
-        break;
-    }
+    final bool isHigh = priority == TaskPriority.high;
+    final Color textAndIconColor =
+        isHigh ? const Color(0xFFD97706) : const Color(0xFFB45309);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: bg,
+        color: AppColors.pendingLight,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            icon,
+            isHigh ? Icons.keyboard_arrow_up_rounded : Icons.remove_rounded,
             size: 14,
             color: textAndIconColor,
           ),
           const SizedBox(width: 4),
           Text(
-            label,
+            isHigh ? 'High Priority' : 'Normal Priority',
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
@@ -369,19 +387,22 @@ class TaskCardWidget extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: AppTextStyles.labelSmall,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: AppTextStyles.heading3,
-            ),
-          ],
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: AppTextStyles.labelSmall,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: AppTextStyles.heading3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ],
     );
