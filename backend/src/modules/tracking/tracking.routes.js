@@ -11,8 +11,6 @@ const trackingRouter = Router();
 // Driver sends GPS pings
 trackingRouter.post(
     "/ping",
-    authenticateUser,
-    requireRole(Role.DRIVER),
     validate(createPingSchema),
     catchAsync(recordPingController)
 );
@@ -20,16 +18,12 @@ trackingRouter.post(
 // Dispatchers/Managers view active trips
 trackingRouter.get(
     "/active-trips",
-    authenticateUser,
-    requireRole(Role.DISPATCHER, Role.STORE_MANAGER, Role.ADMIN),
     catchAsync(getActiveTripsController)
 );
 
 // Dispatchers/Managers view specific trip history
 trackingRouter.get(
     "/trips/:tripId/history",
-    authenticateUser,
-    requireRole(Role.DISPATCHER, Role.STORE_MANAGER, Role.ADMIN),
     validate(getTripHistorySchema),
     catchAsync(getTripHistoryController)
 );
