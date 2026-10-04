@@ -45,7 +45,15 @@ export const listOrders = async ({ scope, filters, page, pageSize }) => {
 			],
 		} : {}),
 	};
-	const orderBy = filters.sort === "deliveryDate" ? { deliveryDate: "asc" } : filters.sort === "-deliveryDate" ? { deliveryDate: "desc" } : { createdAt: "desc" };
+	const orderBy = filters.sort === "deliveryDate" ? { deliveryDate: "asc" }
+		: filters.sort === "-deliveryDate" ? { deliveryDate: "desc" }
+		: filters.sort === "createdAt" ? { createdAt: "asc" }
+		: filters.sort === "totalWeightKg" ? { totalWeightKg: "asc" }
+		: filters.sort === "-totalWeightKg" ? { totalWeightKg: "desc" }
+		: filters.sort === "outletName" ? { outlet: { name: "asc" } }
+		: filters.sort === "-outletName" ? { outlet: { name: "desc" } }
+		: filters.sort === "status" ? { status: "asc" }
+		: { createdAt: "desc" };
 	const db = getPrisma();
 	const [items, total] = await Promise.all([
 		db.order.findMany({ where, orderBy, skip: (page - 1) * pageSize, take: pageSize, include: orderInclude }),

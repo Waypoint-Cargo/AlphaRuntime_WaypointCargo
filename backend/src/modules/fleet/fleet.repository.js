@@ -231,3 +231,12 @@ export const createFuelLedgerEntry = async ({ vehicleId, weekStart, kind, distan
         data: { vehicleId, weekStart, kind, distanceKm, litres, note },
     });
 };
+
+// record the PLANNED fuel of a trip when its plan is published (unique per trip + kind, so a retry cannot double-count)
+export const createPlannedFuelEntryTx = async (tx, { vehicleId, weekStart, tripId, distanceKm, litres, note }) => {
+    const existing = await tx.fuelLedgerEntry.findFirst({ where: { tripId, kind: FuelEntryKind.PLANNED }, select: { id: true } });
+    if (existing) {
+        return tx.fuelLedgerEntry.update({ where: { id: existing.id }, data: { vehicleId, weekStart, distanceKm, litres, note } });
+    }
+    return tx.fuelLedgerEntry.create({ data: { vehicleId, weekStart, tripId, kind: FuelEntryKind.PLANNED, distanceKm, litres, note } });
+};

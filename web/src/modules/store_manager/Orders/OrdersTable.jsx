@@ -43,7 +43,7 @@ function getDriverDisplay(driver) {
 }
 
 export function StatusBadge({ status }) {
-  const s = STATUS[status];
+  const s = STATUS[status] || { label: status || "Unknown", cls: "pending" };
   return <span className={`badge ${s.cls}`}>{s.label}</span>;
 }
 
